@@ -411,6 +411,39 @@ h2 {
   color: #66625c;
 }
 
+.inline-link {
+  color: #1b6b5b;
+  font-weight: 800;
+}
+
+.detail-list {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+}
+
+.detail-list div {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  min-height: 48px;
+  border: 1px solid #e2e7e9;
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.detail-list dt {
+  color: #66625c;
+  font-weight: 800;
+}
+
+.detail-list dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .field-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -549,5 +582,10 @@ h2 {
   .video-thumb {
     width: 44px;
     height: 44px;
+  }
+
+  .detail-list div {
+    grid-template-columns: 1fr;
+    gap: 4px;
   }
 }

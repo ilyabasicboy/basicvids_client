@@ -80,10 +80,12 @@
         <RouterView v-slot="{ Component }">
           <component
             :is="Component"
+            :current-user="currentUser"
             :current-user-text="currentUserText"
             :format-bytes="formatBytes"
             :future-services="futureServices"
             :get-initial="getInitial"
+            :is-authenticated="isAuthenticated"
             :is-creating-account="isCreatingAccount"
             :is-loading-videos="isLoadingVideos"
             :is-signing-in="isSigningIn"
@@ -129,7 +131,7 @@ const messageType = ref('info');
 
 const navItems = [
   { id: 'videos', label: 'Videos', status: 'Storage', to: '/videos', activePaths: ['/videos'] },
-  { id: 'account', label: 'Account', status: 'Auth', to: '/account', activePaths: ['/account', '/auth', '/create-account'] },
+  { id: 'account', label: 'Account', status: 'Auth', to: '/account', activePaths: ['/account', '/auth', '/create-account', '/current-user'] },
   { id: 'future', label: 'Roadmap', status: 'Next', to: '/roadmap', activePaths: ['/roadmap'] },
 ];
 
