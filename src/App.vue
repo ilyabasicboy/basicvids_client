@@ -287,6 +287,12 @@ function onDrop(event) {
 }
 
 async function uploadSelectedVideo() {
+  if (!isAuthenticated.value) {
+    setMessage('Sign in to upload videos.', 'error');
+    await router.push('/auth');
+    return;
+  }
+
   if (!uploadFile.value) {
     return;
   }

@@ -1,6 +1,6 @@
 <template>
   <section class="main-grid">
-    <article class="panel upload-panel">
+    <article v-if="isAuthenticated" class="panel upload-panel">
       <div class="panel-heading">
         <p class="eyebrow">Storage</p>
         <h2>Upload video</h2>
@@ -20,6 +20,16 @@
       <button class="primary-button" type="button" :disabled="!uploadFile || isUploading" @click="$emit('upload-video')">
         {{ isUploading ? 'Uploading...' : 'Upload video' }}
       </button>
+    </article>
+
+    <article v-else class="panel upload-panel">
+      <div class="panel-heading">
+        <p class="eyebrow">Storage</p>
+        <h2>Upload video</h2>
+      </div>
+      <div class="empty-state">
+        <RouterLink class="inline-link" to="/auth">Sign in to upload videos.</RouterLink>
+      </div>
     </article>
 
     <article class="panel library-panel">
@@ -58,6 +68,7 @@ import { RouterLink } from 'vue-router';
 const props = defineProps({
   currentUser: { type: Object, default: null },
   videos: { type: Array, default: () => [] },
+  isAuthenticated: { type: Boolean, default: false },
   isLoadingVideos: { type: Boolean, default: false },
   uploadFile: { type: Object, default: null },
   isUploading: { type: Boolean, default: false },
