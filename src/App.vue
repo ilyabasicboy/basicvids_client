@@ -11,17 +11,16 @@
         </div>
 
         <nav class="nav-list" aria-label="Sections">
-          <button
+          <RouterLink
             v-for="item in navItems"
             :key="item.id"
+            :to="item.to"
             class="nav-item"
-            :class="{ active: activeSection === item.id }"
-            type="button"
-            @click="activeSection = item.id"
+            :class="{ active: isNavActive(item) }"
           >
             <span>{{ item.label }}</span>
             <small>{{ item.status }}</small>
-          </button>
+          </RouterLink>
         </nav>
 
         <div class="gateway-box">
@@ -78,96 +77,28 @@
           </article>
         </section>
 
-        <section v-if="activeSection === 'videos'" class="main-grid">
-          <article class="panel upload-panel">
-            <div class="panel-heading">
-              <p class="eyebrow">Storage</p>
-              <h2>Upload video</h2>
-            </div>
-
-            <label
-              class="dropzone"
-              :class="{ selected: uploadFile }"
-              @dragover.prevent
-              @drop.prevent="onDrop"
-            >
-              <input type="file" accept="video/*" @change="onFileSelect" />
-              <span>{{ uploadFile ? uploadFile.name : 'Choose or drop a video file' }}</span>
-              <small>{{ uploadFile ? formatBytes(uploadFile.size) : 'Stored by the storage microservice' }}</small>
-            </label>
-
-            <button class="primary-button" type="button" :disabled="!uploadFile || isUploading" @click="uploadSelectedVideo">
-              {{ isUploading ? 'Uploading...' : 'Upload video' }}
-            </button>
-          </article>
-
-          <article class="panel library-panel">
-            <div class="panel-heading inline">
-              <div>
-                <p class="eyebrow">Videos</p>
-                <h2>Library</h2>
-              </div>
-              <button type="button" class="ghost-button" @click="loadVideos">Refresh</button>
-            </div>
-
-            <div v-if="isLoadingVideos" class="empty-state">Loading videos...</div>
-            <div v-else-if="videos.length === 0" class="empty-state">No videos uploaded yet.</div>
-            <ul v-else class="video-list">
-              <li v-for="video in videos" :key="video.id" class="video-item">
-                <div class="video-thumb">
-                  <span>{{ getInitial(video.original_filename) }}</span>
-                </div>
-                <div>
-                  <strong>{{ video.original_filename }}</strong>
-                  <small>{{ formatBytes(video.size_bytes) }} · {{ video.content_type || 'video' }}</small>
-                </div>
-                <a :href="api.videoUrl(video.id)" target="_blank" rel="noreferrer">Open</a>
-              </li>
-            </ul>
-          </article>
-        </section>
-
-        <section v-if="activeSection === 'account'" class="main-grid">
-          <article class="panel">
-            <div class="panel-heading">
-              <p class="eyebrow">Auth</p>
-              <h2>Sign in</h2>
-            </div>
-
-            <form class="auth-form" @submit.prevent="login">
-              <label>
-                <span>Username or email</span>
-                <input v-model="credentials.identifier" type="text" autocomplete="username" />
-              </label>
-              <label>
-                <span>Password</span>
-                <input v-model="credentials.password" type="password" autocomplete="current-password" />
-              </label>
-              <button class="primary-button" type="submit" :disabled="isSigningIn">
-                {{ isSigningIn ? 'Signing in...' : 'Sign in' }}
-              </button>
-            </form>
-          </article>
-
-          <article class="panel profile-panel">
-            <div class="panel-heading">
-              <p class="eyebrow">User</p>
-              <h2>Current access</h2>
-            </div>
-            <pre>{{ currentUserText }}</pre>
-          </article>
-        </section>
-
-        <section v-if="activeSection === 'future'" class="future-section">
-          <article v-for="service in futureServices" :key="service.name" class="future-item">
-            <img :src="service.image" :alt="service.name" />
-            <div>
-              <span>{{ service.name }}</span>
-              <strong>{{ service.route }}</strong>
-              <small>{{ service.note }}</small>
-            </div>
-          </article>
-        </section>
+        <RouterView v-slot="{ Component }">
+          <component
+            :is="Component"
+            :current-user-text="currentUserText"
+            :format-bytes="formatBytes"
+            :future-services="futureServices"
+            :get-initial="getInitial"
+            :is-creating-account="isCreatingAccount"
+            :is-loading-videos="isLoadingVideos"
+            :is-signing-in="isSigningIn"
+            :is-uploading="isUploading"
+            :upload-file="uploadFile"
+            :video-url="videoUrl"
+            :videos="videos"
+            @create-account="createAccount"
+            @drop-video="onDrop"
+            @load-videos="loadVideos"
+            @login="login"
+            @select-video="onFileSelect"
+            @upload-video="uploadSelectedVideo"
+          />
+        </RouterView>
 
         <p v-if="message" class="message" :class="messageType">{{ message }}</p>
       </section>
@@ -176,10 +107,12 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
+import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { api } from './api';
 
-const activeSection = ref('videos');
+const route = useRoute();
+const router = useRouter();
 const gatewayStatus = ref('Checking...');
 const authStatus = ref('Checking...');
 const storageStatus = ref('Checking...');
@@ -187,20 +120,17 @@ const videos = ref([]);
 const isLoadingVideos = ref(false);
 const uploadFile = ref(null);
 const isUploading = ref(false);
+const isCreatingAccount = ref(false);
 const isSigningIn = ref(false);
 const currentUser = ref(null);
+const authToken = ref(localStorage.getItem('basicvids_access_token'));
 const message = ref('');
 const messageType = ref('info');
 
-const credentials = reactive({
-  identifier: '',
-  password: '',
-});
-
 const navItems = [
-  { id: 'videos', label: 'Videos', status: 'Storage' },
-  { id: 'account', label: 'Account', status: 'Auth' },
-  { id: 'future', label: 'Roadmap', status: 'Next' },
+  { id: 'videos', label: 'Videos', status: 'Storage', to: '/videos', activePaths: ['/videos'] },
+  { id: 'account', label: 'Account', status: 'Auth', to: '/account', activePaths: ['/account', '/auth', '/create-account'] },
+  { id: 'future', label: 'Roadmap', status: 'Next', to: '/roadmap', activePaths: ['/roadmap'] },
 ];
 
 const futureServices = [
@@ -225,13 +155,17 @@ const futureServices = [
 ];
 
 const apiBaseUrl = computed(() => api.baseUrl);
-const isAuthenticated = computed(() => Boolean(localStorage.getItem('basicvids_access_token')));
+const isAuthenticated = computed(() => Boolean(authToken.value));
 const userLabel = computed(() => currentUser.value?.username || currentUser.value?.email || 'Guest');
 const currentUserText = computed(() => (currentUser.value ? JSON.stringify(currentUser.value, null, 2) : 'No signed-in user loaded.'));
 
 function setMessage(text, type = 'info') {
   message.value = text;
   messageType.value = type;
+}
+
+function isNavActive(item) {
+  return item.activePaths.includes(route.path);
 }
 
 async function loadHealth() {
@@ -275,13 +209,12 @@ async function loadVideos() {
   }
 }
 
-async function login() {
+async function login(credentials) {
   isSigningIn.value = true;
   try {
     const response = await api.login(credentials.identifier, credentials.password);
-    localStorage.setItem('basicvids_access_token', response.access_token);
-    localStorage.setItem('basicvids_refresh_token', response.refresh_token);
-    currentUser.value = await api.currentUser();
+    await applyAuthResponse(response);
+    await router.push('/account');
     setMessage('Signed in.', 'success');
   } catch (error) {
     setMessage(error.message, 'error');
@@ -290,9 +223,44 @@ async function login() {
   }
 }
 
+async function applyAuthResponse(response) {
+  localStorage.setItem('basicvids_access_token', response.access_token);
+  localStorage.setItem('basicvids_refresh_token', response.refresh_token);
+  authToken.value = response.access_token;
+  currentUser.value = await api.currentUser();
+}
+
+async function createAccount(account) {
+  if (account.password !== account.confirmPassword) {
+    setMessage('Passwords do not match.', 'error');
+    return;
+  }
+
+  isCreatingAccount.value = true;
+  try {
+    await api.createAccount({
+      username: account.username,
+      first_name: account.firstName || null,
+      last_name: account.lastName || null,
+      email: account.email,
+      password: account.password,
+    });
+
+    const loginResponse = await api.login(account.username, account.password);
+    await applyAuthResponse(loginResponse);
+    await router.push('/account');
+    setMessage('Account created.', 'success');
+  } catch (error) {
+    setMessage(error.message, 'error');
+  } finally {
+    isCreatingAccount.value = false;
+  }
+}
+
 function logout() {
   localStorage.removeItem('basicvids_access_token');
   localStorage.removeItem('basicvids_refresh_token');
+  authToken.value = null;
   currentUser.value = null;
   setMessage('Signed out.', 'info');
 }
@@ -335,6 +303,10 @@ function formatBytes(value = 0) {
 
 function getInitial(value = '') {
   return value.trim().charAt(0).toUpperCase() || 'V';
+}
+
+function videoUrl(videoId) {
+  return api.videoUrl(videoId);
 }
 
 onMounted(async () => {

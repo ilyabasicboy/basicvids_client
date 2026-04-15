@@ -21,7 +21,14 @@ async function request(path, options = {}) {
   const data = contentType.includes('application/json') ? await response.json() : await response.text();
 
   if (!response.ok) {
-    const message = typeof data === 'object' && data?.detail ? data.detail : 'Request failed';
+    let message = 'Request failed';
+
+    if (typeof data === 'object' && data?.detail) {
+      message = Array.isArray(data.detail)
+        ? data.detail.map((item) => item.msg || item.detail || 'Validation error').join('. ')
+        : data.detail;
+    }
+
     throw new Error(message);
   }
 
@@ -39,6 +46,13 @@ export const api = {
     return request('/api/v1/auth/login/', {
       method: 'POST',
       body: JSON.stringify({ identifier, password }),
+    });
+  },
+
+  createAccount(account) {
+    return request('/api/v1/users/create/', {
+      method: 'POST',
+      body: JSON.stringify(account),
     });
   },
 
