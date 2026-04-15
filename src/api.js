@@ -75,6 +75,12 @@ export const api = {
     });
   },
 
+  deleteVideo(videoId) {
+    return request(`/api/v1/videos/${videoId}`, {
+      method: 'DELETE',
+    });
+  },
+
   videoUrl(videoId) {
     return `${API_BASE_URL}/api/v1/videos/${videoId}/download/`;
   },

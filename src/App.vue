@@ -94,6 +94,7 @@
             :video-url="videoUrl"
             :videos="videos"
             @create-account="createAccount"
+            @delete-video="deleteVideo"
             @drop-video="onDrop"
             @load-videos="loadVideos"
             @login="login"
@@ -290,6 +291,16 @@ async function uploadSelectedVideo() {
     setMessage(error.message, 'error');
   } finally {
     isUploading.value = false;
+  }
+}
+
+async function deleteVideo(video) {
+  try {
+    await api.deleteVideo(video.id);
+    videos.value = videos.value.filter((item) => item.id !== video.id);
+    setMessage('Video deleted.', 'success');
+  } catch (error) {
+    setMessage(error.message, 'error');
   }
 }
 

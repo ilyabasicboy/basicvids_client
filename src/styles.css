@@ -166,12 +166,19 @@ h2 {
 }
 
 .user-strip button,
-.ghost-button {
+.ghost-button,
+.danger-button {
   border: 1px solid #243b36;
   border-radius: 8px;
   padding: 9px 12px;
   background: transparent;
   color: #243b36;
+}
+
+.danger-button {
+  border-color: #a63b32;
+  color: #a63b32;
+  font-weight: 800;
 }
 
 .hero-panel {
@@ -320,7 +327,7 @@ h2 {
 
 .video-item {
   display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) auto;
+  grid-template-columns: 52px minmax(0, 1fr) auto auto;
   gap: 12px;
   align-items: center;
   min-height: 70px;
@@ -575,7 +582,8 @@ h2 {
     grid-template-columns: 44px minmax(0, 1fr);
   }
 
-  .video-item a {
+  .video-item a,
+  .video-item button {
     grid-column: 2;
   }
 

@@ -43,6 +43,9 @@
             <small>{{ formatBytes(video.size_bytes) }} · {{ video.content_type || 'video' }}</small>
           </div>
           <a :href="videoUrl(video.id)" target="_blank" rel="noreferrer">Open</a>
+          <button v-if="canDelete(video)" class="danger-button" type="button" @click="$emit('delete-video', video)">
+            Delete
+          </button>
         </li>
       </ul>
     </article>
@@ -50,7 +53,8 @@
 </template>
 
 <script setup>
-defineProps({
+const props = defineProps({
+  currentUser: { type: Object, default: null },
   videos: { type: Array, default: () => [] },
   isLoadingVideos: { type: Boolean, default: false },
   uploadFile: { type: Object, default: null },
@@ -60,5 +64,9 @@ defineProps({
   videoUrl: { type: Function, required: true },
 });
 
-defineEmits(['drop-video', 'load-videos', 'select-video', 'upload-video']);
+defineEmits(['delete-video', 'drop-video', 'load-videos', 'select-video', 'upload-video']);
+
+function canDelete(video) {
+  return Boolean(props.currentUser?.is_admin || (props.currentUser?.id && props.currentUser.id === video.author_id));
+}
 </script>
