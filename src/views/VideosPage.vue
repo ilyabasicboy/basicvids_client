@@ -42,7 +42,7 @@
             <strong>{{ video.original_filename }}</strong>
             <small>{{ formatBytes(video.size_bytes) }} · {{ video.content_type || 'video' }}</small>
           </div>
-          <a :href="videoUrl(video.id)" target="_blank" rel="noreferrer">Open</a>
+          <RouterLink :to="`/videos/${video.id}`">Open</RouterLink>
           <button v-if="canDelete(video)" class="danger-button" type="button" @click="$emit('delete-video', video)">
             Delete
           </button>
@@ -53,6 +53,8 @@
 </template>
 
 <script setup>
+import { RouterLink } from 'vue-router';
+
 const props = defineProps({
   currentUser: { type: Object, default: null },
   videos: { type: Array, default: () => [] },
@@ -61,7 +63,6 @@ const props = defineProps({
   isUploading: { type: Boolean, default: false },
   formatBytes: { type: Function, required: true },
   getInitial: { type: Function, required: true },
-  videoUrl: { type: Function, required: true },
 });
 
 defineEmits(['delete-video', 'drop-video', 'load-videos', 'select-video', 'upload-video']);

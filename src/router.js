@@ -4,6 +4,7 @@ import CreateAccountPage from './views/CreateAccountPage.vue';
 import CurrentUserPage from './views/CurrentUserPage.vue';
 import LoginPage from './views/LoginPage.vue';
 import RoadmapPage from './views/RoadmapPage.vue';
+import VideoPlayerPage from './views/VideoPlayerPage.vue';
 import VideosPage from './views/VideosPage.vue';
 
 export const router = createRouter({
@@ -11,6 +12,7 @@ export const router = createRouter({
   routes: [
     { path: '/', redirect: '/videos' },
     { path: '/videos', name: 'videos', component: VideosPage },
+    { path: '/videos/:videoId', name: 'video-player', component: VideoPlayerPage },
     { path: '/account', name: 'account', component: AccountPage },
     { path: '/auth', name: 'auth', component: LoginPage },
     { path: '/create-account', name: 'create-account', component: CreateAccountPage },

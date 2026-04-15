@@ -90,6 +90,7 @@
             :is-loading-videos="isLoadingVideos"
             :is-signing-in="isSigningIn"
             :is-uploading="isUploading"
+            :load-video="loadVideo"
             :upload-file="uploadFile"
             :video-url="videoUrl"
             :videos="videos"
@@ -168,7 +169,7 @@ function setMessage(text, type = 'info') {
 }
 
 function isNavActive(item) {
-  return item.activePaths.includes(route.path);
+  return item.activePaths.some((path) => route.path === path || route.path.startsWith(`${path}/`));
 }
 
 async function loadHealth() {
@@ -210,6 +211,15 @@ async function loadVideos() {
   } finally {
     isLoadingVideos.value = false;
   }
+}
+
+async function loadVideo(videoId) {
+  const cachedVideo = videos.value.find((video) => video.id === videoId);
+  if (cachedVideo) {
+    return cachedVideo;
+  }
+
+  return api.getVideo(videoId);
 }
 
 async function login(credentials) {

@@ -64,6 +64,10 @@ export const api = {
     return request('/api/v1/videos/');
   },
 
+  getVideo(videoId) {
+    return request(`/api/v1/videos/${videoId}`);
+  },
+
   uploadVideo(file) {
     const formData = new FormData();
     formData.append('file', file);

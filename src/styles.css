@@ -167,12 +167,14 @@ h2 {
 
 .user-strip button,
 .ghost-button,
-.danger-button {
+.danger-button,
+.ghost-link {
   border: 1px solid #243b36;
   border-radius: 8px;
   padding: 9px 12px;
   background: transparent;
   color: #243b36;
+  text-decoration: none;
 }
 
 .danger-button {
@@ -345,6 +347,18 @@ h2 {
 .video-item a {
   color: #1b6b5b;
   font-weight: 800;
+}
+
+.video-player-page {
+  display: grid;
+  gap: 18px;
+}
+
+.video-player {
+  display: block;
+  width: 100%;
+  max-height: min(68vh, 720px);
+  background: #171717;
 }
 
 .video-thumb {
