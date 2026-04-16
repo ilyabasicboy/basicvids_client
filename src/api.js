@@ -60,6 +60,20 @@ export const api = {
     return request('/api/v1/users/detail/');
   },
 
+  changeUser(user) {
+    return request('/api/v1/users/change/', {
+      method: 'PATCH',
+      body: JSON.stringify(user),
+    });
+  },
+
+  changePassword(passwords) {
+    return request('/api/v1/users/change/password/', {
+      method: 'PATCH',
+      body: JSON.stringify(passwords),
+    });
+  },
+
   listVideos() {
     return request('/api/v1/videos/');
   },

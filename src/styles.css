@@ -443,6 +443,11 @@ h2 {
   margin: 0;
 }
 
+.detail-form {
+  display: grid;
+  gap: 16px;
+}
+
 .detail-list div {
   display: grid;
   grid-template-columns: 120px minmax(0, 1fr);
@@ -463,6 +468,22 @@ h2 {
   min-width: 0;
   margin: 0;
   overflow-wrap: anywhere;
+}
+
+.detail-list input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #c8d0d4;
+  border-radius: 8px;
+  padding: 9px 11px;
+  background: #ffffff;
+  color: #171717;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .field-row {

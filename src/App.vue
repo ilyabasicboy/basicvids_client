@@ -86,6 +86,8 @@
             :future-services="futureServices"
             :get-initial="getInitial"
             :is-authenticated="isAuthenticated"
+            :is-changing-user="isChangingUser"
+            :is-changing-password="isChangingPassword"
             :is-creating-account="isCreatingAccount"
             :is-loading-videos="isLoadingVideos"
             :is-signing-in="isSigningIn"
@@ -94,6 +96,8 @@
             :upload-file="uploadFile"
             :video-url="videoUrl"
             :videos="videos"
+            @change-user="changeUser"
+            @change-password="changePassword"
             @create-account="createAccount"
             @delete-video="deleteVideo"
             @drop-video="onDrop"
@@ -124,6 +128,8 @@ const videos = ref([]);
 const isLoadingVideos = ref(false);
 const uploadFile = ref(null);
 const isUploading = ref(false);
+const isChangingUser = ref(false);
+const isChangingPassword = ref(false);
 const isCreatingAccount = ref(false);
 const isSigningIn = ref(false);
 const currentUser = ref(null);
@@ -267,6 +273,41 @@ async function createAccount(account) {
     setMessage(error.message, 'error');
   } finally {
     isCreatingAccount.value = false;
+  }
+}
+
+async function changeUser(user) {
+  isChangingUser.value = true;
+  try {
+    currentUser.value = await api.changeUser({
+      first_name: user.firstName || null,
+      last_name: user.lastName || null,
+    });
+    setMessage('Account details updated.', 'success');
+  } catch (error) {
+    setMessage(error.message, 'error');
+  } finally {
+    isChangingUser.value = false;
+  }
+}
+
+async function changePassword(passwords) {
+  if (passwords.newPassword !== passwords.confirmPassword) {
+    setMessage('Passwords do not match.', 'error');
+    return;
+  }
+
+  isChangingPassword.value = true;
+  try {
+    await api.changePassword({
+      old_password: passwords.oldPassword,
+      new_password: passwords.newPassword,
+    });
+    setMessage('Password changed.', 'success');
+  } catch (error) {
+    setMessage(error.message, 'error');
+  } finally {
+    isChangingPassword.value = false;
   }
 }
 
