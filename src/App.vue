@@ -138,12 +138,6 @@ const futureServices = [
     image: 'https://images.unsplash.com/photo-1516321497487-e288fb19713f?auto=format&fit=crop&w=600&q=80',
   },
   {
-    name: 'Descriptions',
-    route: '/api/v1/descriptions/',
-    note: 'Metadata and text enrichment',
-    image: 'https://images.unsplash.com/photo-1455390582262-044cdead277a?auto=format&fit=crop&w=600&q=80',
-  },
-  {
     name: 'Payments',
     route: '/api/v1/payments/',
     note: 'Subscriptions and invoices',
