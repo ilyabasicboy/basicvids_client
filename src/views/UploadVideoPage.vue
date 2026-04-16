@@ -27,6 +27,12 @@
           <small>{{ form.file ? formatBytes(form.file.size) : 'Stored by the storage microservice' }}</small>
         </label>
 
+        <label class="dropzone thumbnail-dropzone" :class="{ selected: form.thumbnail }">
+          <input type="file" accept="image/*" @change="onThumbnailSelect" />
+          <span>{{ form.thumbnail ? form.thumbnail.name : 'Choose a thumbnail image' }}</span>
+          <small>{{ form.thumbnail ? formatBytes(form.thumbnail.size) : 'Shown in the video library' }}</small>
+        </label>
+
         <button class="primary-button" type="submit" :disabled="!form.file || !form.title || isUploading">
           {{ isUploading ? 'Uploading...' : 'Upload video' }}
         </button>
@@ -61,6 +67,7 @@ const form = reactive({
   title: '',
   description: '',
   file: null,
+  thumbnail: null,
 });
 
 function onFileSelect(event) {
@@ -77,11 +84,16 @@ function onDrop(event) {
   }
 }
 
+function onThumbnailSelect(event) {
+  form.thumbnail = event.target.files?.[0] || null;
+}
+
 function submit() {
   emit('upload-video', {
     file: form.file,
     title: form.title,
     description: form.description,
+    thumbnail: form.thumbnail,
   });
 }
 </script>

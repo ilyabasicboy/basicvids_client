@@ -18,7 +18,13 @@
       <ul v-else class="video-list">
         <li v-for="video in videos" :key="video.id" class="video-item">
           <div class="video-thumb">
-            <span>{{ getInitial(video.original_filename) }}</span>
+            <img
+              v-if="video.has_thumbnail"
+              :src="videoThumbnailUrl(video.id)"
+              :alt="`${video.title || video.original_filename} thumbnail`"
+              loading="lazy"
+            />
+            <span v-else>{{ getInitial(video.original_filename) }}</span>
           </div>
           <div>
             <strong>{{ video.title || video.original_filename }}</strong>
@@ -44,6 +50,7 @@ const props = defineProps({
   isLoadingVideos: { type: Boolean, default: false },
   formatBytes: { type: Function, required: true },
   getInitial: { type: Function, required: true },
+  videoThumbnailUrl: { type: Function, required: true },
 });
 
 defineEmits(['delete-video', 'load-videos']);

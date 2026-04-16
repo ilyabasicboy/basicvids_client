@@ -102,6 +102,9 @@ export const api = {
     if (metadata.description) {
       formData.append('description', metadata.description);
     }
+    if (metadata.thumbnail) {
+      formData.append('thumbnail', metadata.thumbnail);
+    }
 
     return request('/api/v1/videos/upload/', {
       method: 'POST',
@@ -143,5 +146,9 @@ export const api = {
 
   videoUrl(videoId) {
     return `${API_BASE_URL}/api/v1/videos/${videoId}/download/`;
+  },
+
+  videoThumbnailUrl(videoId) {
+    return `${API_BASE_URL}/api/v1/videos/${videoId}/thumbnail/`;
   },
 };

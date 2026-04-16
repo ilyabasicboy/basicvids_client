@@ -78,6 +78,7 @@
             :create-comment="createComment"
             :delete-comment="deleteComment"
             :upload-file="uploadFile"
+            :video-thumbnail-url="videoThumbnailUrl"
             :video-url="videoUrl"
             :videos="videos"
             @change-user="changeUser"
@@ -404,6 +405,7 @@ async function uploadSelectedVideo(upload) {
     await api.uploadVideo(file, {
       title: upload?.title,
       description: upload?.description,
+      thumbnail: upload?.thumbnail,
     });
     uploadFile.value = null;
     await loadVideos();
@@ -460,6 +462,10 @@ function getInitial(value = '') {
 
 function videoUrl(videoId) {
   return api.videoUrl(videoId);
+}
+
+function videoThumbnailUrl(videoId) {
+  return api.videoThumbnailUrl(videoId);
 }
 
 onMounted(async () => {
