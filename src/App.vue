@@ -88,6 +88,7 @@
             :is-authenticated="isAuthenticated"
             :is-changing-user="isChangingUser"
             :is-changing-password="isChangingPassword"
+            :is-confirming-email="isConfirmingEmail"
             :is-creating-account="isCreatingAccount"
             :is-loading-videos="isLoadingVideos"
             :is-signing-in="isSigningIn"
@@ -98,6 +99,7 @@
             :videos="videos"
             @change-user="changeUser"
             @change-password="changePassword"
+            @confirm-email="confirmEmail"
             @create-account="createAccount"
             @delete-video="deleteVideo"
             @drop-video="onDrop"
@@ -130,16 +132,18 @@ const uploadFile = ref(null);
 const isUploading = ref(false);
 const isChangingUser = ref(false);
 const isChangingPassword = ref(false);
+const isConfirmingEmail = ref(false);
 const isCreatingAccount = ref(false);
 const isSigningIn = ref(false);
 const currentUser = ref(null);
 const authToken = ref(localStorage.getItem('basicvids_access_token'));
+const pendingConfirmCredentials = ref(null);
 const message = ref('');
 const messageType = ref('info');
 
 const navItems = [
   { id: 'videos', label: 'Videos', status: 'Storage', to: '/videos', activePaths: ['/videos'] },
-  { id: 'account', label: 'Account', status: 'Auth', to: '/account', activePaths: ['/account', '/auth', '/create-account', '/current-user'] },
+  { id: 'account', label: 'Account', status: 'Auth', to: '/account', activePaths: ['/account', '/auth', '/create-account', '/confirm-email', '/current-user'] },
   { id: 'future', label: 'Roadmap', status: 'Next', to: '/roadmap', activePaths: ['/roadmap'] },
 ];
 
@@ -236,6 +240,13 @@ async function login(credentials) {
     await router.push('/account');
     setMessage('Signed in.', 'success');
   } catch (error) {
+    if (error.message === 'Email is not confirmed') {
+      const email = credentials.identifier.includes('@') ? credentials.identifier : '';
+      pendingConfirmCredentials.value = { ...credentials };
+      await router.push({ path: '/confirm-email', query: email ? { email } : {} });
+      setMessage('Confirm your email before signing in.', 'error');
+      return;
+    }
     setMessage(error.message, 'error');
   } finally {
     isSigningIn.value = false;
@@ -257,7 +268,7 @@ async function createAccount(account) {
 
   isCreatingAccount.value = true;
   try {
-    await api.createAccount({
+    const createdUser = await api.createAccount({
       username: account.username,
       first_name: account.firstName || null,
       last_name: account.lastName || null,
@@ -265,14 +276,45 @@ async function createAccount(account) {
       password: account.password,
     });
 
-    const loginResponse = await api.login(account.username, account.password);
-    await applyAuthResponse(loginResponse);
-    await router.push('/account');
-    setMessage('Account created.', 'success');
+    pendingConfirmCredentials.value = {
+      identifier: account.username,
+      password: account.password,
+    };
+    await router.push({ path: '/confirm-email', query: { email: createdUser.email } });
+    setMessage('Account created. Confirm your email to sign in.', 'success');
   } catch (error) {
     setMessage(error.message, 'error');
   } finally {
     isCreatingAccount.value = false;
+  }
+}
+
+async function confirmEmail(data) {
+  isConfirmingEmail.value = true;
+  try {
+    await api.confirmEmail({
+      email: data.email,
+      code: data.code,
+    });
+
+    if (pendingConfirmCredentials.value) {
+      const response = await api.login(
+        pendingConfirmCredentials.value.identifier,
+        pendingConfirmCredentials.value.password,
+      );
+      await applyAuthResponse(response);
+      pendingConfirmCredentials.value = null;
+      await router.push('/account');
+      setMessage('Email confirmed. Signed in.', 'success');
+      return;
+    }
+
+    await router.push('/auth');
+    setMessage('Email confirmed. Sign in to continue.', 'success');
+  } catch (error) {
+    setMessage(error.message, 'error');
+  } finally {
+    isConfirmingEmail.value = false;
   }
 }
 

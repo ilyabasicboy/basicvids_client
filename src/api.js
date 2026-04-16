@@ -56,6 +56,13 @@ export const api = {
     });
   },
 
+  confirmEmail(data) {
+    return request('/api/v1/users/confirm/email/', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+
   currentUser() {
     return request('/api/v1/users/detail/');
   },

@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 import AccountPage from './views/AccountPage.vue';
+import ConfirmEmailPage from './views/ConfirmEmailPage.vue';
 import CreateAccountPage from './views/CreateAccountPage.vue';
 import CurrentUserPage from './views/CurrentUserPage.vue';
 import LoginPage from './views/LoginPage.vue';
@@ -16,6 +17,7 @@ export const router = createRouter({
     { path: '/account', name: 'account', component: AccountPage },
     { path: '/auth', name: 'auth', component: LoginPage },
     { path: '/create-account', name: 'create-account', component: CreateAccountPage },
+    { path: '/confirm-email', name: 'confirm-email', component: ConfirmEmailPage },
     { path: '/current-user', name: 'current-user', component: CurrentUserPage },
     { path: '/roadmap', name: 'roadmap', component: RoadmapPage },
   ],

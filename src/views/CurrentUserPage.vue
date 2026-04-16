@@ -21,6 +21,10 @@
             <dd>{{ currentUser.email }}</dd>
           </div>
           <div>
+            <dt>Email confirmed</dt>
+            <dd>{{ currentUser.email_confirmed ? 'Yes' : 'No' }}</dd>
+          </div>
+          <div>
             <dt>First name</dt>
             <dd v-if="!isEditing">{{ currentUser.first_name || 'Not set' }}</dd>
             <dd v-else>
