@@ -123,6 +123,24 @@ export const api = {
     });
   },
 
+  listComments(videoId) {
+    const params = new URLSearchParams({ video_id: videoId });
+    return request(`/api/v1/comments/?${params.toString()}`);
+  },
+
+  createComment(videoId, text) {
+    return request('/api/v1/comments/', {
+      method: 'POST',
+      body: JSON.stringify({ video_id: videoId, text }),
+    });
+  },
+
+  deleteComment(commentId) {
+    return request(`/api/v1/comments/${commentId}`, {
+      method: 'DELETE',
+    });
+  },
+
   videoUrl(videoId) {
     return `${API_BASE_URL}/api/v1/videos/${videoId}/download/`;
   },

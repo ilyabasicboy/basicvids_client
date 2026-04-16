@@ -366,6 +366,68 @@ h2 {
   background: #171717;
 }
 
+.comments-panel,
+.comment-form {
+  display: grid;
+  gap: 16px;
+}
+
+.comment-form label {
+  display: grid;
+  gap: 7px;
+}
+
+.comment-form span {
+  font-weight: 800;
+}
+
+.comment-form textarea {
+  width: 100%;
+  min-height: 104px;
+  border: 1px solid #c8d0d4;
+  border-radius: 8px;
+  padding: 10px 12px;
+  resize: vertical;
+  background: #ffffff;
+  color: #171717;
+}
+
+.comment-list {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.comment-item {
+  display: grid;
+  gap: 8px;
+  border: 1px solid #e2e7e9;
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.comment-item strong,
+.comment-item small {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.comment-item small {
+  color: #66625c;
+}
+
+.comment-item p {
+  margin: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.comment-item .danger-button {
+  justify-self: start;
+}
+
 .video-thumb {
   display: grid;
   place-items: center;

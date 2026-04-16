@@ -38,7 +38,7 @@
           </div>
           <div class="user-strip">
             <span>{{ userLabel }}</span>
-            <button v-if="isAuthenticated" type="button" @click="logout">Log out</button>
+            <button v-if="isAuthenticated" type="button" @click="logout()">Log out</button>
           </div>
         </header>
 
@@ -74,6 +74,9 @@
             :is-signing-in="isSigningIn"
             :is-uploading="isUploading"
             :load-video="loadVideo"
+            :load-comments="loadComments"
+            :create-comment="createComment"
+            :delete-comment="deleteComment"
             :upload-file="uploadFile"
             :video-url="videoUrl"
             :videos="videos"
@@ -207,6 +210,31 @@ async function loadVideo(videoId) {
   }
 
   return api.getVideo(videoId);
+}
+
+async function loadComments(videoId) {
+  return api.listComments(videoId);
+}
+
+async function createComment(videoId, text) {
+  try {
+    const comment = await api.createComment(videoId, text);
+    setMessage('Comment added.', 'success');
+    return comment;
+  } catch (error) {
+    setMessage(error.message, 'error');
+    throw error;
+  }
+}
+
+async function deleteComment(commentId) {
+  try {
+    await api.deleteComment(commentId);
+    setMessage('Comment deleted.', 'success');
+  } catch (error) {
+    setMessage(error.message, 'error');
+    throw error;
+  }
 }
 
 async function login(credentials) {
@@ -348,7 +376,7 @@ function logout(text = 'Signed out.', type = 'info') {
   localStorage.removeItem('basicvids_refresh_token');
   authToken.value = null;
   currentUser.value = null;
-  setMessage(text, type);
+  setMessage(typeof text === 'string' ? text : 'Signed out.', type);
 }
 
 function onFileSelect(event) {
