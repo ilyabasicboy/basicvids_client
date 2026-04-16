@@ -81,6 +81,12 @@ export const api = {
     });
   },
 
+  deleteCurrentUser() {
+    return request('/api/v1/users/delete/', {
+      method: 'DELETE',
+    });
+  },
+
   listVideos() {
     return request('/api/v1/videos/');
   },
@@ -89,14 +95,25 @@ export const api = {
     return request(`/api/v1/videos/${videoId}`);
   },
 
-  uploadVideo(file) {
+  uploadVideo(file, metadata = {}) {
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('title', metadata.title || file.name);
+    if (metadata.description) {
+      formData.append('description', metadata.description);
+    }
 
     return request('/api/v1/videos/upload/', {
       method: 'POST',
       body: formData,
       headers: {},
+    });
+  },
+
+  changeVideo(videoId, metadata) {
+    return request(`/api/v1/videos/${videoId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(metadata),
     });
   },
 

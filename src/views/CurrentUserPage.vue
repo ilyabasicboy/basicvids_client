@@ -59,6 +59,16 @@
             </template>
           </div>
         </form>
+
+        <div class="danger-zone">
+          <div>
+            <p class="eyebrow">Danger</p>
+            <h2>Delete user</h2>
+          </div>
+          <button class="danger-button" type="button" @click="isDeleteModalOpen = true">
+            Delete user
+          </button>
+        </div>
       </article>
 
       <article class="panel user-password-column">
@@ -85,6 +95,26 @@
           </button>
         </form>
       </article>
+
+      <div v-if="isDeleteModalOpen" class="modal-backdrop" role="presentation" @click.self="closeDeleteModal">
+        <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="delete-user-title">
+          <div class="panel-heading">
+            <p class="eyebrow">Confirm</p>
+            <h2 id="delete-user-title">Delete user</h2>
+          </div>
+          <p class="modal-copy">
+            This will delete your account and sign you out.
+          </p>
+          <div class="form-actions">
+            <button class="danger-button" type="button" :disabled="isDeletingUser" @click="confirmDeleteUser">
+              {{ isDeletingUser ? 'Deleting...' : 'Delete user' }}
+            </button>
+            <button class="ghost-button" type="button" :disabled="isDeletingUser" @click="closeDeleteModal">
+              Cancel
+            </button>
+          </div>
+        </section>
+      </div>
     </template>
 
     <div v-else class="empty-state">
@@ -101,10 +131,12 @@ const props = defineProps({
   currentUser: { type: Object, default: null },
   isChangingUser: { type: Boolean, default: false },
   isChangingPassword: { type: Boolean, default: false },
+  isDeletingUser: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['change-password', 'change-user']);
+const emit = defineEmits(['change-password', 'change-user', 'delete-user']);
 const isEditing = ref(false);
+const isDeleteModalOpen = ref(false);
 const wasSaving = ref(false);
 const wasSavingPassword = ref(false);
 
@@ -179,5 +211,15 @@ function submit() {
 
 function submitPassword() {
   emit('change-password', { ...passwordForm });
+}
+
+function closeDeleteModal() {
+  if (!props.isDeletingUser) {
+    isDeleteModalOpen.value = false;
+  }
+}
+
+function confirmDeleteUser() {
+  emit('delete-user');
 }
 </script>

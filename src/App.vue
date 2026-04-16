@@ -62,11 +62,14 @@
             :format-bytes="formatBytes"
             :future-services="futureServices"
             :get-initial="getInitial"
+            :change-video="changeVideo"
             :is-authenticated="isAuthenticated"
+            :is-changing-video="isChangingVideo"
             :is-changing-user="isChangingUser"
             :is-changing-password="isChangingPassword"
             :is-confirming-email="isConfirmingEmail"
             :is-creating-account="isCreatingAccount"
+            :is-deleting-user="isDeletingUser"
             :is-loading-videos="isLoadingVideos"
             :is-signing-in="isSigningIn"
             :is-uploading="isUploading"
@@ -78,6 +81,7 @@
             @change-password="changePassword"
             @confirm-email="confirmEmail"
             @create-account="createAccount"
+            @delete-user="deleteUser"
             @delete-video="deleteVideo"
             @drop-video="onDrop"
             @load-videos="loadVideos"
@@ -107,10 +111,12 @@ const videos = ref([]);
 const isLoadingVideos = ref(false);
 const uploadFile = ref(null);
 const isUploading = ref(false);
+const isChangingVideo = ref(false);
 const isChangingUser = ref(false);
 const isChangingPassword = ref(false);
 const isConfirmingEmail = ref(false);
 const isCreatingAccount = ref(false);
+const isDeletingUser = ref(false);
 const isSigningIn = ref(false);
 const currentUser = ref(null);
 const authToken = ref(localStorage.getItem('basicvids_access_token'));
@@ -330,12 +336,25 @@ async function changePassword(passwords) {
   }
 }
 
-function logout() {
+async function deleteUser() {
+  isDeletingUser.value = true;
+  try {
+    await api.deleteCurrentUser();
+    logout('Account deleted.', 'success');
+    await router.push('/account');
+  } catch (error) {
+    setMessage(error.message, 'error');
+  } finally {
+    isDeletingUser.value = false;
+  }
+}
+
+function logout(text = 'Signed out.', type = 'info') {
   localStorage.removeItem('basicvids_access_token');
   localStorage.removeItem('basicvids_refresh_token');
   authToken.value = null;
   currentUser.value = null;
-  setMessage('Signed out.', 'info');
+  setMessage(text, type);
 }
 
 function onFileSelect(event) {
@@ -346,22 +365,27 @@ function onDrop(event) {
   uploadFile.value = event.dataTransfer.files?.[0] || null;
 }
 
-async function uploadSelectedVideo() {
+async function uploadSelectedVideo(upload) {
   if (!isAuthenticated.value) {
     setMessage('Sign in to upload videos.', 'error');
     await router.push('/auth');
     return;
   }
 
-  if (!uploadFile.value) {
+  const file = upload?.file || uploadFile.value;
+  if (!file) {
     return;
   }
 
   isUploading.value = true;
   try {
-    await api.uploadVideo(uploadFile.value);
+    await api.uploadVideo(file, {
+      title: upload?.title,
+      description: upload?.description,
+    });
     uploadFile.value = null;
     await loadVideos();
+    await router.push('/videos');
     setMessage('Video uploaded.', 'success');
   } catch (error) {
     setMessage(error.message, 'error');
@@ -370,10 +394,28 @@ async function uploadSelectedVideo() {
   }
 }
 
+async function changeVideo(videoId, metadata) {
+  isChangingVideo.value = true;
+  try {
+    const changedVideo = await api.changeVideo(videoId, metadata);
+    videos.value = videos.value.map((video) => (video.id === changedVideo.id ? changedVideo : video));
+    setMessage('Video details updated.', 'success');
+    return changedVideo;
+  } catch (error) {
+    setMessage(error.message, 'error');
+    throw error;
+  } finally {
+    isChangingVideo.value = false;
+  }
+}
+
 async function deleteVideo(video) {
   try {
     await api.deleteVideo(video.id);
     videos.value = videos.value.filter((item) => item.id !== video.id);
+    if (route.path === `/videos/${video.id}`) {
+      await router.push('/videos');
+    }
     setMessage('Video deleted.', 'success');
   } catch (error) {
     setMessage(error.message, 'error');

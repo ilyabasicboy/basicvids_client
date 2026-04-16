@@ -266,6 +266,11 @@ h2 {
   gap: 18px;
 }
 
+.library-grid {
+  display: grid;
+  gap: 18px;
+}
+
 .panel {
   display: grid;
   gap: 18px;
@@ -485,7 +490,8 @@ h2 {
   overflow-wrap: anywhere;
 }
 
-.detail-list input {
+.detail-list input,
+.detail-list textarea {
   width: 100%;
   min-height: 42px;
   border: 1px solid #c8d0d4;
@@ -495,10 +501,57 @@ h2 {
   color: #171717;
 }
 
+.detail-list textarea {
+  resize: vertical;
+}
+
 .form-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+}
+
+.danger-zone {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #e2b7b2;
+  border-radius: 8px;
+  padding: 14px;
+  background: #fff7f6;
+}
+
+.danger-zone h2,
+.danger-zone p {
+  margin: 0;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(23, 23, 23, 0.45);
+}
+
+.modal-panel {
+  display: grid;
+  gap: 16px;
+  width: min(420px, 100%);
+  border: 1px solid #d7dee2;
+  border-radius: 8px;
+  padding: 18px;
+  background: #ffffff;
+  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.22);
+}
+
+.modal-copy {
+  margin: 0;
+  color: #66625c;
 }
 
 .field-row {
@@ -516,7 +569,8 @@ h2 {
   font-weight: 800;
 }
 
-.auth-form input {
+.auth-form input,
+.auth-form textarea {
   width: 100%;
   min-height: 44px;
   border: 1px solid #c8d0d4;
@@ -524,6 +578,10 @@ h2 {
   padding: 10px 12px;
   background: #ffffff;
   color: #171717;
+}
+
+.auth-form textarea {
+  resize: vertical;
 }
 
 .profile-panel pre {
