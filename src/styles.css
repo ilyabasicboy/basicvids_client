@@ -437,6 +437,21 @@ h2 {
   font-weight: 800;
 }
 
+.user-details-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.user-details-column {
+  flex: 1 1 520px;
+}
+
+.user-password-column {
+  flex: 1 1 320px;
+}
+
 .detail-list {
   display: grid;
   gap: 10px;

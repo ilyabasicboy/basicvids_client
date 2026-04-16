@@ -54,29 +54,6 @@
           </div>
         </section>
 
-        <section class="service-grid">
-          <article class="service-card">
-            <span>Auth</span>
-            <strong>{{ authStatus }}</strong>
-            <small>/api/v1/auth and /api/v1/users</small>
-          </article>
-          <article class="service-card">
-            <span>Storage</span>
-            <strong>{{ storageStatus }}</strong>
-            <small>/api/v1/videos</small>
-          </article>
-          <article class="service-card muted">
-            <span>Next</span>
-            <strong>Comments</strong>
-            <small>Ready for a new gateway route</small>
-          </article>
-          <article class="service-card muted">
-            <span>Next</span>
-            <strong>Payments</strong>
-            <small>Ready for a new gateway route</small>
-          </article>
-        </section>
-
         <RouterView v-slot="{ Component }">
           <component
             :is="Component"
