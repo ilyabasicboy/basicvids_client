@@ -4,19 +4,22 @@
       <div class="panel-heading inline">
         <div>
           <p class="eyebrow">Videos</p>
-          <h2>Library</h2>
+          <h2>User videos</h2>
         </div>
         <div class="form-actions">
-          <RouterLink v-if="isAuthenticated" class="ghost-link" to="/user-videos">User videos</RouterLink>
+          <RouterLink v-if="isAuthenticated" class="ghost-link" to="/videos/upload">Upload video</RouterLink>
           <RouterLink v-else class="ghost-link" to="/auth">Sign in to upload</RouterLink>
           <button type="button" class="ghost-button" @click="$emit('load-videos')">Refresh</button>
         </div>
       </div>
 
-      <div v-if="isLoadingVideos" class="empty-state">Loading videos...</div>
-      <div v-else-if="videos.length === 0" class="empty-state">No videos uploaded yet.</div>
+      <div v-if="!isAuthenticated" class="empty-state">
+        <RouterLink class="inline-link" to="/auth">Sign in to view your videos.</RouterLink>
+      </div>
+      <div v-else-if="isLoadingVideos" class="empty-state">Loading videos...</div>
+      <div v-else-if="userVideos.length === 0" class="empty-state">No videos uploaded by this user yet.</div>
       <ul v-else class="video-list">
-        <li v-for="video in videos" :key="video.id" class="video-item">
+        <li v-for="video in userVideos" :key="video.id" class="video-item">
           <RouterLink
             class="video-tile"
             :class="{ fallback: !video.has_thumbnail }"
@@ -45,6 +48,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue';
 import { RouterLink } from 'vue-router';
 
 const props = defineProps({
@@ -58,6 +62,14 @@ const props = defineProps({
 });
 
 defineEmits(['delete-video', 'load-videos']);
+
+const userVideos = computed(() => {
+  if (!props.currentUser?.id) {
+    return [];
+  }
+
+  return props.videos.filter((video) => video.author_id === props.currentUser.id);
+});
 
 function canDelete(video) {
   return Boolean(props.currentUser?.is_admin || (props.currentUser?.id && props.currentUser.id === video.author_id));

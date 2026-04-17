@@ -134,7 +134,7 @@ let messageTimerId = null;
 
 const navItems = [
   { id: 'videos', label: 'Videos', status: 'Storage', to: '/videos', activePaths: ['/videos'] },
-  { id: 'account', label: 'Account', status: 'Auth', to: '/account', activePaths: ['/account', '/auth', '/create-account', '/confirm-email', '/current-user'] },
+  { id: 'account', label: 'Account', status: 'Auth', to: '/account', activePaths: ['/account', '/auth', '/create-account', '/confirm-email', '/current-user', '/user-videos'] },
   { id: 'future', label: 'Roadmap', status: 'Next', to: '/roadmap', activePaths: ['/roadmap'] },
 ];
 

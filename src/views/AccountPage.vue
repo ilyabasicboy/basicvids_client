@@ -29,6 +29,10 @@
           <span>Current user details</span>
           <small>View profile fields returned by the auth service.</small>
         </RouterLink>
+        <RouterLink class="page-link" to="/user-videos">
+          <span>User videos</span>
+          <small>Open videos uploaded by the current user.</small>
+        </RouterLink>
       </div>
     </article>
 
