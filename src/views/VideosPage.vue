@@ -17,22 +17,26 @@
       <div v-else-if="videos.length === 0" class="empty-state">No videos uploaded yet.</div>
       <ul v-else class="video-list">
         <li v-for="video in videos" :key="video.id" class="video-item">
-          <div class="video-thumb">
-            <img
-              v-if="video.has_thumbnail"
-              :src="videoThumbnailUrl(video.id)"
-              :alt="`${video.title || video.original_filename} thumbnail`"
-              loading="lazy"
-            />
-            <span v-else>{{ getInitial(video.original_filename) }}</span>
-          </div>
-          <div>
-            <strong>{{ video.title || video.original_filename }}</strong>
-            <small>{{ formatBytes(video.size_bytes) }} · {{ authorLabel(video) }}</small>
-          </div>
-          <RouterLink :to="`/videos/${video.id}`">Open</RouterLink>
-          <button v-if="canDelete(video)" class="danger-button" type="button" @click="$emit('delete-video', video)">
-            Delete
+          <RouterLink
+            class="video-tile"
+            :class="{ fallback: !video.has_thumbnail }"
+            :style="videoTileStyle(video)"
+            :to="`/videos/${video.id}`"
+          >
+            <div v-if="!video.has_thumbnail" class="video-tile-initial">{{ getInitial(video.title || video.original_filename) }}</div>
+            <div class="video-tile-content">
+              <strong>{{ video.title || video.original_filename }}</strong>
+              <small>{{ authorLabel(video) }}</small>
+            </div>
+          </RouterLink>
+          <button
+            v-if="canDelete(video)"
+            class="video-tile-delete"
+            type="button"
+            :aria-label="`Delete ${video.title || video.original_filename}`"
+            @click="$emit('delete-video', video)"
+          >
+            X
           </button>
         </li>
       </ul>
@@ -48,7 +52,7 @@ const props = defineProps({
   videos: { type: Array, default: () => [] },
   isAuthenticated: { type: Boolean, default: false },
   isLoadingVideos: { type: Boolean, default: false },
-  formatBytes: { type: Function, required: true },
+  formatBytes: { type: Function, default: null },
   getInitial: { type: Function, required: true },
   videoThumbnailUrl: { type: Function, required: true },
 });
@@ -67,5 +71,15 @@ function authorLabel(video) {
 
   const fullName = [video.author_first_name, video.author_last_name].filter(Boolean).join(' ');
   return fullName || video.author_username || 'Unknown author';
+}
+
+function videoTileStyle(video) {
+  if (!video.has_thumbnail) {
+    return {};
+  }
+
+  return {
+    backgroundImage: `url("${props.videoThumbnailUrl(video.id)}")`,
+  };
 }
 </script>

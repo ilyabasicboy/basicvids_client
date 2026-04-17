@@ -38,6 +38,7 @@
           </div>
           <div class="user-strip">
             <span>{{ userLabel }}</span>
+            <RouterLink v-if="!isAuthenticated" class="ghost-link" to="/auth">Log in</RouterLink>
             <button v-if="isAuthenticated" type="button" @click="logout()">Log out</button>
           </div>
         </header>
