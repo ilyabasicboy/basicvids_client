@@ -700,6 +700,7 @@ h2 {
   position: fixed;
   right: 18px;
   bottom: 18px;
+  z-index: 40;
   max-width: min(420px, calc(100vw - 36px));
   margin: 0;
   border-radius: 8px;
@@ -715,6 +716,17 @@ h2 {
 
 .message.success {
   background: #1b6b5b;
+}
+
+.message-enter-active,
+.message-leave-active {
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+
+.message-enter-from,
+.message-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
 }
 
 @media (max-width: 980px) {

@@ -95,14 +95,16 @@
           />
         </RouterView>
 
-        <p v-if="message" class="message" :class="messageType">{{ message }}</p>
+        <Transition name="message">
+          <p v-if="message" class="message" :class="messageType">{{ message }}</p>
+        </Transition>
       </section>
     </section>
   </main>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { api } from './api';
 
@@ -127,6 +129,7 @@ const authToken = ref(localStorage.getItem('basicvids_access_token'));
 const pendingConfirmCredentials = ref(null);
 const message = ref('');
 const messageType = ref('info');
+let messageTimerId = null;
 
 const navItems = [
   { id: 'videos', label: 'Videos', status: 'Storage', to: '/videos', activePaths: ['/videos'] },
@@ -157,6 +160,17 @@ const currentUserText = computed(() => (currentUser.value ? JSON.stringify(curre
 function setMessage(text, type = 'info') {
   message.value = text;
   messageType.value = type;
+
+  if (messageTimerId) {
+    clearTimeout(messageTimerId);
+  }
+
+  if (text) {
+    messageTimerId = window.setTimeout(() => {
+      message.value = '';
+      messageTimerId = null;
+    }, 5000);
+  }
 }
 
 function isNavActive(item) {
@@ -477,6 +491,12 @@ onMounted(async () => {
     } catch (error) {
       logout();
     }
+  }
+});
+
+onUnmounted(() => {
+  if (messageTimerId) {
+    clearTimeout(messageTimerId);
   }
 });
 </script>
