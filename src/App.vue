@@ -37,6 +37,7 @@
             <h1>Manage videos, access, and service routes.</h1>
           </div>
           <div class="user-strip">
+            <UserAvatar :user-id="currentUser?.id || null" :label="userLabel" :avatar-url="avatarUrl" />
             <span>{{ userLabel }}</span>
             <RouterLink v-if="!isAuthenticated" class="ghost-link" to="/auth">Log in</RouterLink>
             <button v-if="isAuthenticated" type="button" @click="logout()">Log out</button>
@@ -60,6 +61,7 @@
             :is="Component"
             :current-user="currentUser"
             :current-user-text="currentUserText"
+            :avatar-url="avatarUrl"
             :format-bytes="formatBytes"
             :future-services="futureServices"
             :get-initial="getInitial"
@@ -108,6 +110,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { api } from './api';
+import UserAvatar from './components/UserAvatar.vue';
 
 const route = useRoute();
 const router = useRouter();
@@ -126,6 +129,7 @@ const isCreatingAccount = ref(false);
 const isDeletingUser = ref(false);
 const isSigningIn = ref(false);
 const currentUser = ref(null);
+const avatarVersion = ref(Date.now());
 const authToken = ref(localStorage.getItem('basicvids_access_token'));
 const pendingConfirmCredentials = ref(null);
 const message = ref('');
@@ -297,12 +301,25 @@ async function createAccount(account) {
       password: account.password,
     });
 
+    let avatarUploadFailed = false;
+    if (account.avatar) {
+      try {
+        await api.uploadRegistrationAvatar(createdUser.id, account.avatar);
+        avatarVersion.value = Date.now();
+      } catch (error) {
+        avatarUploadFailed = true;
+        setMessage(`Account created, but avatar upload failed: ${error.message}`, 'error');
+      }
+    }
+
     pendingConfirmCredentials.value = {
       identifier: account.username,
       password: account.password,
     };
     await router.push({ path: '/confirm-email', query: { email: createdUser.email } });
-    setMessage('Account created. Confirm your email to sign in.', 'success');
+    if (!avatarUploadFailed) {
+      setMessage('Account created. Confirm your email to sign in.', 'success');
+    }
   } catch (error) {
     setMessage(error.message, 'error');
   } finally {
@@ -346,6 +363,10 @@ async function changeUser(user) {
       first_name: user.firstName || null,
       last_name: user.lastName || null,
     });
+    if (user.avatar) {
+      await api.uploadCurrentUserAvatar(user.avatar);
+      avatarVersion.value = Date.now();
+    }
     setMessage('Account details updated.', 'success');
   } catch (error) {
     setMessage(error.message, 'error');
@@ -377,6 +398,13 @@ async function changePassword(passwords) {
 async function deleteUser() {
   isDeletingUser.value = true;
   try {
+    try {
+      await api.deleteCurrentUserAvatar();
+    } catch (error) {
+      if (!error.message.includes('not found')) {
+        throw error;
+      }
+    }
     await api.deleteCurrentUser();
     logout('Account deleted.', 'success');
     await router.push('/account');
@@ -481,6 +509,10 @@ function videoUrl(videoId) {
 
 function videoThumbnailUrl(videoId) {
   return api.videoThumbnailUrl(videoId);
+}
+
+function avatarUrl(userId) {
+  return `${api.userAvatarUrl(userId)}?v=${avatarVersion.value}`;
 }
 
 onMounted(async () => {

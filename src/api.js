@@ -56,6 +56,17 @@ export const api = {
     });
   },
 
+  uploadRegistrationAvatar(userId, avatar) {
+    const formData = new FormData();
+    formData.append('avatar', avatar);
+
+    return request(`/api/v1/avatars/users/${userId}/registration/`, {
+      method: 'POST',
+      body: formData,
+      headers: {},
+    });
+  },
+
   confirmEmail(data) {
     return request('/api/v1/users/confirm/email/', {
       method: 'POST',
@@ -71,6 +82,23 @@ export const api = {
     return request('/api/v1/users/change/', {
       method: 'PATCH',
       body: JSON.stringify(user),
+    });
+  },
+
+  uploadCurrentUserAvatar(avatar) {
+    const formData = new FormData();
+    formData.append('avatar', avatar);
+
+    return request('/api/v1/avatars/me/', {
+      method: 'PUT',
+      body: formData,
+      headers: {},
+    });
+  },
+
+  deleteCurrentUserAvatar() {
+    return request('/api/v1/avatars/me/', {
+      method: 'DELETE',
     });
   },
 
@@ -150,5 +178,9 @@ export const api = {
 
   videoThumbnailUrl(videoId) {
     return `${API_BASE_URL}/api/v1/videos/${videoId}/thumbnail/`;
+  },
+
+  userAvatarUrl(userId) {
+    return `${API_BASE_URL}/api/v1/avatars/users/${userId}/image/`;
   },
 };

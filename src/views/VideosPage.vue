@@ -26,7 +26,10 @@
             <div v-if="!video.has_thumbnail" class="video-tile-initial">{{ getInitial(video.title || video.original_filename) }}</div>
             <div class="video-tile-content">
               <strong>{{ video.title || video.original_filename }}</strong>
-              <small>{{ authorLabel(video) }}</small>
+              <small class="video-author-line user-name-line">
+                <UserAvatar :user-id="video.author_id" :label="authorLabel(video)" :avatar-url="avatarUrl" />
+                <span>{{ authorLabel(video) }}</span>
+              </small>
             </div>
           </RouterLink>
           <button
@@ -46,6 +49,7 @@
 
 <script setup>
 import { RouterLink } from 'vue-router';
+import UserAvatar from '../components/UserAvatar.vue';
 
 const props = defineProps({
   currentUser: { type: Object, default: null },
@@ -55,6 +59,7 @@ const props = defineProps({
   formatBytes: { type: Function, default: null },
   getInitial: { type: Function, required: true },
   videoThumbnailUrl: { type: Function, required: true },
+  avatarUrl: { type: Function, required: true },
 });
 
 defineEmits(['delete-video', 'load-videos']);

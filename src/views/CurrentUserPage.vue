@@ -3,8 +3,10 @@
     <template v-if="currentUser">
       <article class="panel profile-panel user-details-column">
         <div class="panel-heading">
-          <p class="eyebrow">User</p>
-          <h2>Current user details</h2>
+          <div>
+            <p class="eyebrow">User</p>
+            <h2>Current user details</h2>
+          </div>
         </div>
 
         <form class="detail-form" @submit.prevent="submit">
@@ -37,6 +39,14 @@
               <dd v-if="!isEditing">{{ currentUser.last_name || 'Not set' }}</dd>
               <dd v-else>
                 <input v-model.trim="form.lastName" type="text" autocomplete="family-name" />
+              </dd>
+            </div>
+            <div>
+              <dt>Avatar</dt>
+              <dd v-if="!isEditing">Stored by the storage service.</dd>
+              <dd v-else>
+                <input type="file" accept="image/*" @change="onAvatarSelect" />
+                <small>{{ form.avatar ? form.avatar.name : 'Keep current avatar.' }}</small>
               </dd>
             </div>
             <div>
@@ -132,6 +142,7 @@ const props = defineProps({
   isChangingUser: { type: Boolean, default: false },
   isChangingPassword: { type: Boolean, default: false },
   isDeletingUser: { type: Boolean, default: false },
+  avatarUrl: { type: Function, required: true },
 });
 
 const emit = defineEmits(['change-password', 'change-user', 'delete-user']);
@@ -143,6 +154,7 @@ const wasSavingPassword = ref(false);
 const form = reactive({
   firstName: '',
   lastName: '',
+  avatar: null,
 });
 
 const passwordForm = reactive({
@@ -156,6 +168,7 @@ watch(
   (user) => {
     form.firstName = user?.first_name || '';
     form.lastName = user?.last_name || '';
+    form.avatar = null;
     isEditing.value = false;
   },
   { immediate: true },
@@ -196,13 +209,19 @@ watch(
 function startEditing() {
   form.firstName = props.currentUser?.first_name || '';
   form.lastName = props.currentUser?.last_name || '';
+  form.avatar = null;
   isEditing.value = true;
 }
 
 function cancelEditing() {
   form.firstName = props.currentUser?.first_name || '';
   form.lastName = props.currentUser?.last_name || '';
+  form.avatar = null;
   isEditing.value = false;
+}
+
+function onAvatarSelect(event) {
+  form.avatar = event.target.files?.[0] || null;
 }
 
 function submit() {

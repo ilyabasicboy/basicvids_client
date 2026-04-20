@@ -25,6 +25,11 @@
           <span>Email</span>
           <input v-model.trim="account.email" type="email" autocomplete="email" required />
         </label>
+        <label class="avatar-upload-field">
+          <span>Avatar</span>
+          <input type="file" accept="image/*" @change="onAvatarSelect" />
+          <small>{{ account.avatar ? account.avatar.name : 'Choose a profile picture.' }}</small>
+        </label>
         <label>
           <span>Password</span>
           <input v-model="account.password" type="password" autocomplete="new-password" required />
@@ -55,9 +60,14 @@ const account = reactive({
   firstName: '',
   lastName: '',
   email: '',
+  avatar: null,
   password: '',
   confirmPassword: '',
 });
+
+function onAvatarSelect(event) {
+  account.avatar = event.target.files?.[0] || null;
+}
 
 function submit() {
   emit('create-account', { ...account });

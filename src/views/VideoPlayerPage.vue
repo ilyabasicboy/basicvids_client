@@ -39,7 +39,10 @@
           </div>
           <div>
             <dt>Author</dt>
-            <dd>{{ authorLabel }}</dd>
+            <dd class="user-name-line">
+              <UserAvatar :user-id="video.author_id" :label="authorLabel" :avatar-url="avatarUrl" />
+              <span>{{ authorLabel }}</span>
+            </dd>
           </div>
         </dl>
 
@@ -86,7 +89,10 @@
       <ul v-else class="comment-list">
         <li v-for="comment in comments" :key="comment.id" class="comment-item">
           <div>
-            <strong>{{ commentAuthorLabel(comment) }}</strong>
+            <strong class="user-name-line">
+              <UserAvatar :user-id="comment.author_id" :label="commentAuthorLabel(comment)" :avatar-url="avatarUrl" />
+              <span>{{ commentAuthorLabel(comment) }}</span>
+            </strong>
             <small>{{ formatDate(comment.created_at) }}</small>
           </div>
           <p>{{ comment.text }}</p>
@@ -102,6 +108,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
+import UserAvatar from '../components/UserAvatar.vue';
 
 const props = defineProps({
   currentUser: { type: Object, default: null },
@@ -113,6 +120,7 @@ const props = defineProps({
   loadComments: { type: Function, required: true },
   loadVideo: { type: Function, required: true },
   videoUrl: { type: Function, required: true },
+  avatarUrl: { type: Function, required: true },
 });
 
 defineEmits(['delete-video']);
