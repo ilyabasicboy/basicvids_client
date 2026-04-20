@@ -9,11 +9,11 @@
         <div class="form-actions">
           <RouterLink v-if="isAuthenticated" class="ghost-link" to="/user-videos">User videos</RouterLink>
           <RouterLink v-else class="ghost-link" to="/auth">Sign in to upload</RouterLink>
-          <button type="button" class="ghost-button" @click="loadVideos()">Refresh</button>
+          <button type="button" class="ghost-button" @click="loadVideos(currentPage)">Refresh</button>
         </div>
       </div>
 
-      <form class="video-search-form" role="search" @submit.prevent="loadVideos()">
+      <form class="video-search-form" role="search" @submit.prevent="searchVideos()">
         <label for="video-search">Search videos</label>
         <div class="video-search-row">
           <input
@@ -66,18 +66,43 @@
           <span class="video-list-spinner" aria-hidden="true"></span>
         </div>
       </div>
+
+      <nav v-if="displayedVideos.length > 0 && videosCount > pageSize" class="pagination" aria-label="Videos pages">
+        <button type="button" class="ghost-button" :disabled="isLoadingVideos || currentPage <= 1" @click="goToPage(1)">
+          First
+        </button>
+        <div class="pagination-pages" aria-label="Page numbers">
+          <button
+            v-for="page in totalPages"
+            :key="page"
+            type="button"
+            class="pagination-page"
+            :class="{ active: page === currentPage }"
+            :aria-current="page === currentPage ? 'page' : undefined"
+            :disabled="isLoadingVideos || page === currentPage"
+            @click="goToPage(page)"
+          >
+            {{ page }}
+          </button>
+        </div>
+        <button type="button" class="ghost-button" :disabled="isLoadingVideos || currentPage >= totalPages" @click="goToPage(totalPages)">
+          Last
+        </button>
+        <span class="pagination-range">{{ pageStart }}-{{ pageEnd }} of {{ videosCount }}</span>
+      </nav>
     </article>
   </section>
 </template>
 
 <script setup>
-import { onUnmounted, ref, watch } from 'vue';
+import { computed, onUnmounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 import UserAvatar from '../components/UserAvatar.vue';
 
 const props = defineProps({
   currentUser: { type: Object, default: null },
   videos: { type: Array, default: () => [] },
+  videosCount: { type: Number, default: 0 },
   isAuthenticated: { type: Boolean, default: false },
   isLoadingVideos: { type: Boolean, default: false },
   formatBytes: { type: Function, default: null },
@@ -87,9 +112,16 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['delete-video', 'load-videos']);
+const pageSize = 1;
 const searchQuery = ref('');
+const currentPage = ref(1);
 const displayedVideos = ref([...props.videos]);
 let searchTimerId = null;
+let skipNextSearchWatch = false;
+
+const totalPages = computed(() => Math.max(1, Math.ceil(props.videosCount / pageSize)));
+const pageStart = computed(() => (props.videosCount === 0 ? 0 : (currentPage.value - 1) * pageSize + 1));
+const pageEnd = computed(() => Math.min(currentPage.value * pageSize, props.videosCount));
 
 watch(
   () => [props.videos, props.isLoadingVideos],
@@ -101,28 +133,52 @@ watch(
 );
 
 watch(searchQuery, () => {
-  if (searchTimerId) {
-    clearTimeout(searchTimerId);
+  if (skipNextSearchWatch) {
+    skipNextSearchWatch = false;
+    return;
   }
 
+  clearPendingSearchTimer();
+
   searchTimerId = window.setTimeout(() => {
-    loadVideos();
+    searchVideos();
   }, 300);
 });
 
 onUnmounted(() => {
-  if (searchTimerId) {
-    clearTimeout(searchTimerId);
-  }
+  clearPendingSearchTimer();
 });
 
-function loadVideos() {
-  emit('load-videos', searchQuery.value.trim());
+function clearPendingSearchTimer() {
+  if (searchTimerId) {
+    clearTimeout(searchTimerId);
+    searchTimerId = null;
+  }
+}
+
+function searchVideos() {
+  clearPendingSearchTimer();
+  loadVideos(1);
+}
+
+function loadVideos(page = currentPage.value) {
+  currentPage.value = Math.min(Math.max(page, 1), totalPages.value);
+  emit('load-videos', {
+    search: searchQuery.value.trim(),
+    offset: (currentPage.value - 1) * pageSize,
+    limit: pageSize,
+  });
+}
+
+function goToPage(page) {
+  loadVideos(page);
 }
 
 function clearSearch() {
+  clearPendingSearchTimer();
+  skipNextSearchWatch = true;
   searchQuery.value = '';
-  loadVideos();
+  searchVideos();
 }
 
 function canDelete(video) {

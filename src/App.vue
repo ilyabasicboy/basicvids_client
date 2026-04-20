@@ -52,7 +52,7 @@
           />
           <div class="hero-overlay">
             <p>Library</p>
-            <h2>{{ videos.length }} videos connected</h2>
+            <h2>{{ videosCount }} videos connected</h2>
           </div>
         </section>
 
@@ -63,7 +63,6 @@
             :current-user-text="currentUserText"
             :avatar-url="avatarUrl"
             :format-bytes="formatBytes"
-            :future-services="futureServices"
             :get-initial="getInitial"
             :change-video="changeVideo"
             :is-authenticated="isAuthenticated"
@@ -84,6 +83,7 @@
             :video-thumbnail-url="videoThumbnailUrl"
             :video-url="videoUrl"
             :videos="videos"
+            :videos-count="videosCount"
             @change-user="changeUser"
             @change-password="changePassword"
             @confirm-email="confirmEmail"
@@ -118,6 +118,7 @@ const gatewayStatus = ref('Checking...');
 const authStatus = ref('Checking...');
 const storageStatus = ref('Checking...');
 const videos = ref([]);
+const videosCount = ref(0);
 const isLoadingVideos = ref(false);
 const uploadFile = ref(null);
 const isUploading = ref(false);
@@ -140,22 +141,6 @@ let videosRequestId = 0;
 const navItems = [
   { id: 'videos', label: 'Videos', status: 'Storage', to: '/videos', activePaths: ['/videos'] },
   { id: 'account', label: 'Account', status: 'Auth', to: '/account', activePaths: ['/account', '/auth', '/create-account', '/confirm-email', '/current-user', '/user-videos'] },
-  { id: 'future', label: 'Roadmap', status: 'Next', to: '/roadmap', activePaths: ['/roadmap'] },
-];
-
-const futureServices = [
-  {
-    name: 'Comments',
-    route: '/api/v1/comments/',
-    note: 'Thread and moderation service',
-    image: 'https://images.unsplash.com/photo-1516321497487-e288fb19713f?auto=format&fit=crop&w=600&q=80',
-  },
-  {
-    name: 'Payments',
-    route: '/api/v1/payments/',
-    note: 'Subscriptions and invoices',
-    image: 'https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=600&q=80',
-  },
 ];
 
 const apiBaseUrl = computed(() => api.baseUrl);
@@ -212,15 +197,17 @@ async function loadHealth() {
   }
 }
 
-async function loadVideos(search = '') {
+async function loadVideos(options = {}) {
+  const normalizedOptions = typeof options === 'string' ? { search: options } : options;
   const requestId = ++videosRequestId;
   isLoadingVideos.value = true;
   try {
-    const response = await api.listVideos(search);
+    const response = await api.listVideos(normalizedOptions);
     if (requestId !== videosRequestId) {
       return;
     }
     videos.value = response.videos || [];
+    videosCount.value = response.count || 0;
   } catch (error) {
     if (requestId === videosRequestId) {
       setMessage(error.message, 'error');
@@ -489,6 +476,7 @@ async function deleteVideo(video) {
   try {
     await api.deleteVideo(video.id);
     videos.value = videos.value.filter((item) => item.id !== video.id);
+    videosCount.value = Math.max(0, videosCount.value - 1);
     if (route.path === `/videos/${video.id}`) {
       await router.push('/videos');
     }

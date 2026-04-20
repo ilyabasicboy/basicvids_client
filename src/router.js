@@ -4,7 +4,6 @@ import ConfirmEmailPage from './views/ConfirmEmailPage.vue';
 import CreateAccountPage from './views/CreateAccountPage.vue';
 import CurrentUserPage from './views/CurrentUserPage.vue';
 import LoginPage from './views/LoginPage.vue';
-import RoadmapPage from './views/RoadmapPage.vue';
 import UploadVideoPage from './views/UploadVideoPage.vue';
 import UserVideosPage from './views/UserVideosPage.vue';
 import VideoPlayerPage from './views/VideoPlayerPage.vue';
@@ -23,6 +22,5 @@ export const router = createRouter({
     { path: '/create-account', name: 'create-account', component: CreateAccountPage },
     { path: '/confirm-email', name: 'confirm-email', component: ConfirmEmailPage },
     { path: '/current-user', name: 'current-user', component: CurrentUserPage },
-    { path: '/roadmap', name: 'roadmap', component: RoadmapPage },
   ],
 });

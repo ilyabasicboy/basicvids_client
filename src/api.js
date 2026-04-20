@@ -115,13 +115,15 @@ export const api = {
     });
   },
 
-  listVideos(search = '') {
+  listVideos({ search = '', offset = 0, limit = 30 } = {}) {
     const params = new URLSearchParams();
     const cleanSearch = search.trim();
 
     if (cleanSearch) {
       params.set('search', cleanSearch);
     }
+    params.set('offset', String(offset));
+    params.set('limit', String(limit));
 
     const queryString = params.toString();
     return request(`/api/v1/videos/${queryString ? `?${queryString}` : ''}`);
