@@ -115,8 +115,16 @@ export const api = {
     });
   },
 
-  listVideos() {
-    return request('/api/v1/videos/');
+  listVideos(search = '') {
+    const params = new URLSearchParams();
+    const cleanSearch = search.trim();
+
+    if (cleanSearch) {
+      params.set('search', cleanSearch);
+    }
+
+    const queryString = params.toString();
+    return request(`/api/v1/videos/${queryString ? `?${queryString}` : ''}`);
   },
 
   getVideo(videoId) {

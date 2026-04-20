@@ -135,6 +135,7 @@ const pendingConfirmCredentials = ref(null);
 const message = ref('');
 const messageType = ref('info');
 let messageTimerId = null;
+let videosRequestId = 0;
 
 const navItems = [
   { id: 'videos', label: 'Videos', status: 'Storage', to: '/videos', activePaths: ['/videos'] },
@@ -211,15 +212,23 @@ async function loadHealth() {
   }
 }
 
-async function loadVideos() {
+async function loadVideos(search = '') {
+  const requestId = ++videosRequestId;
   isLoadingVideos.value = true;
   try {
-    const response = await api.listVideos();
+    const response = await api.listVideos(search);
+    if (requestId !== videosRequestId) {
+      return;
+    }
     videos.value = response.videos || [];
   } catch (error) {
-    setMessage(error.message, 'error');
+    if (requestId === videosRequestId) {
+      setMessage(error.message, 'error');
+    }
   } finally {
-    isLoadingVideos.value = false;
+    if (requestId === videosRequestId) {
+      isLoadingVideos.value = false;
+    }
   }
 }
 
