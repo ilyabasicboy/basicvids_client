@@ -16,9 +16,19 @@
 
       <div v-if="isLoading" class="empty-state">Loading video...</div>
       <div v-else-if="errorMessage" class="empty-state">{{ errorMessage }}</div>
-      <video v-else-if="video" class="video-player" :src="videoUrl(video.id)" controls preload="metadata">
-        Your browser cannot play this video.
-      </video>
+      <div v-else-if="video" class="video-player-area">
+        <video class="video-player" :src="currentVideoUrl" controls preload="metadata">
+          Your browser cannot play this video.
+        </video>
+        <label v-if="qualityOptions.length > 1" class="quality-select">
+          <span>Quality</span>
+          <select v-model="selectedQuality">
+            <option v-for="quality in qualityOptions" :key="quality.value" :value="quality.value">
+              {{ quality.label }}
+            </option>
+          </select>
+        </label>
+      </div>
       <div v-else class="empty-state">Video not found.</div>
 
       <form v-if="video" class="detail-form" @submit.prevent="submit">
@@ -134,8 +144,23 @@ const isCreatingComment = ref(false);
 const errorMessage = ref('');
 const isEditing = ref(false);
 const commentText = ref('');
+const selectedQuality = ref('');
 const videoTitle = computed(() => video.value?.title || video.value?.original_filename || 'Video');
 const canEdit = computed(() => Boolean(video.value && props.currentUser?.id === video.value.author_id));
+const qualityOptions = computed(() => {
+  const qualities = video.value?.qualities || [];
+  return qualities.map((quality) => ({
+    value: String(quality.quality),
+    label: quality.label || `${quality.quality}p`,
+  }));
+});
+const currentVideoUrl = computed(() => {
+  if (!video.value) {
+    return '';
+  }
+
+  return props.videoUrl(video.value.id, selectedQuality.value || null);
+});
 const authorLabel = computed(() => {
   if (!video.value) {
     return 'Unknown author';
@@ -161,6 +186,7 @@ async function loadCurrentVideo() {
 
   try {
     video.value = await props.loadVideo(route.params.videoId);
+    resetSelectedQuality();
     resetForm();
     await loadCurrentComments();
   } catch (error) {
@@ -190,6 +216,12 @@ async function loadCurrentComments() {
 function resetForm() {
   form.title = video.value?.title || '';
   form.description = video.value?.description || '';
+}
+
+function resetSelectedQuality() {
+  const qualities = video.value?.qualities || [];
+  const bestQuality = qualities.reduce((best, quality) => (quality.quality > best.quality ? quality : best), qualities[0]);
+  selectedQuality.value = bestQuality ? String(bestQuality.quality) : '';
 }
 
 function startEditing() {

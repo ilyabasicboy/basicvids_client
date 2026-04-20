@@ -618,11 +618,36 @@ h2 {
   gap: 18px;
 }
 
+.video-player-area {
+  display: grid;
+  gap: 12px;
+}
+
 .video-player {
   display: block;
   width: 100%;
   max-height: min(68vh, 720px);
   background: #171717;
+}
+
+.quality-select {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  align-items: center;
+}
+
+.quality-select span {
+  font-weight: 800;
+}
+
+.quality-select select {
+  min-height: 40px;
+  border: 1px solid #c8d0d4;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #ffffff;
+  color: #171717;
 }
 
 .comments-panel,

@@ -182,8 +182,14 @@ export const api = {
     });
   },
 
-  videoUrl(videoId) {
-    return `${API_BASE_URL}/api/v1/videos/${videoId}/download/`;
+  videoUrl(videoId, quality = null) {
+    const params = new URLSearchParams();
+    if (quality) {
+      params.set('quality', String(quality));
+    }
+
+    const queryString = params.toString();
+    return `${API_BASE_URL}/api/v1/videos/${videoId}/download/${queryString ? `?${queryString}` : ''}`;
   },
 
   videoThumbnailUrl(videoId) {

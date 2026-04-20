@@ -500,8 +500,8 @@ function getInitial(value = '') {
   return value.trim().charAt(0).toUpperCase() || 'V';
 }
 
-function videoUrl(videoId) {
-  return api.videoUrl(videoId);
+function videoUrl(videoId, quality = null) {
+  return api.videoUrl(videoId, quality);
 }
 
 function videoThumbnailUrl(videoId) {
