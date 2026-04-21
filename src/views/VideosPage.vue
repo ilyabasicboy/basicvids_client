@@ -37,18 +37,19 @@
           <li v-for="video in displayedVideos" :key="video.id" class="video-item">
             <RouterLink
               class="video-tile"
-              :class="{ fallback: !video.has_thumbnail }"
-              :style="videoTileStyle(video)"
-              :to="`/videos/${video.id}`"
-            >
-              <div v-if="!video.has_thumbnail" class="video-tile-initial">{{ getInitial(video.title || video.original_filename) }}</div>
-              <span class="video-play-icon" aria-hidden="true"></span>
-              <div class="video-tile-content">
-                <strong>{{ video.title || video.original_filename }}</strong>
-                <small class="video-author-line user-name-line">
-                  <UserAvatar :user-id="video.author_id" :label="authorLabel(video)" :avatar-url="avatarUrl" />
-                  <span>{{ authorLabel(video) }}</span>
-                </small>
+            :class="{ fallback: !video.has_thumbnail }"
+            :style="videoTileStyle(video)"
+            :to="`/videos/${video.id}`"
+          >
+            <div v-if="!video.has_thumbnail" class="video-tile-initial">{{ getInitial(video.title || video.original_filename) }}</div>
+            <span class="video-play-icon" aria-hidden="true"></span>
+            <div class="video-tile-content">
+              <small v-if="video.status !== 'ready'" class="video-status-badge" :class="video.status">{{ statusLabel(video) }}</small>
+              <strong>{{ video.title || video.original_filename }}</strong>
+              <small class="video-author-line user-name-line">
+                <UserAvatar :user-id="video.author_id" :label="authorLabel(video)" :avatar-url="avatarUrl" />
+                <span>{{ authorLabel(video) }}</span>
+              </small>
               </div>
             </RouterLink>
             <button
@@ -112,7 +113,7 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['delete-video', 'load-videos']);
-const pageSize = 1;
+const pageSize = 30;
 const searchQuery = ref('');
 const currentPage = ref(1);
 const displayedVideos = ref([...props.videos]);
@@ -193,6 +194,18 @@ function authorLabel(video) {
 
   const fullName = [video.author_first_name, video.author_last_name].filter(Boolean).join(' ');
   return fullName || video.author_username || 'Unknown author';
+}
+
+function statusLabel(video) {
+  if (video.status === 'processing') {
+    return 'Processing';
+  }
+
+  if (video.status === 'failed') {
+    return 'Failed';
+  }
+
+  return 'Ready';
 }
 
 function videoTileStyle(video) {

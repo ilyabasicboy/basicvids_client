@@ -28,6 +28,7 @@
           >
             <div v-if="!video.has_thumbnail" class="video-tile-initial">{{ getInitial(video.title || video.original_filename) }}</div>
             <div class="video-tile-content">
+              <small v-if="video.status !== 'ready'" class="video-status-badge" :class="video.status">{{ statusLabel(video) }}</small>
               <strong>{{ video.title || video.original_filename }}</strong>
               <small>{{ authorLabel(video) }}</small>
             </div>
@@ -83,6 +84,18 @@ function authorLabel(video) {
 
   const fullName = [video.author_first_name, video.author_last_name].filter(Boolean).join(' ');
   return fullName || video.author_username || 'Unknown author';
+}
+
+function statusLabel(video) {
+  if (video.status === 'processing') {
+    return 'Processing';
+  }
+
+  if (video.status === 'failed') {
+    return 'Failed';
+  }
+
+  return 'Ready';
 }
 
 function videoTileStyle(video) {

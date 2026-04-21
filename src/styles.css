@@ -558,6 +558,26 @@ h2 {
   overflow-wrap: anywhere;
 }
 
+.video-status-badge {
+  display: inline-flex;
+  width: fit-content;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 8px;
+  padding: 4px 8px;
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.4);
+  font-size: 0.78rem;
+  line-height: 1.1;
+}
+
+.video-status-badge.processing {
+  background: rgba(180, 63, 51, 0.92);
+}
+
+.video-status-badge.failed {
+  background: rgba(166, 59, 50, 0.92);
+}
+
 .video-tile strong {
   color: #ffffff;
   font-size: 1.24rem;

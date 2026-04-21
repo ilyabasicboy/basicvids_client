@@ -16,7 +16,7 @@
 
       <div v-if="isLoading" class="empty-state">Loading video...</div>
       <div v-else-if="errorMessage" class="empty-state">{{ errorMessage }}</div>
-      <div v-else-if="video" class="video-player-area">
+      <div v-else-if="video?.status === 'ready'" class="video-player-area">
         <video class="video-player" :src="currentVideoUrl" controls preload="metadata">
           Your browser cannot play this video.
         </video>
@@ -28,6 +28,10 @@
             </option>
           </select>
         </label>
+      </div>
+      <div v-else-if="video?.status === 'processing'" class="empty-state">Video is still processing.</div>
+      <div v-else-if="video?.status === 'failed'" class="empty-state">
+        {{ video.processing_error || 'Video processing failed.' }}
       </div>
       <div v-else class="empty-state">Video not found.</div>
 
@@ -116,7 +120,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import UserAvatar from '../components/UserAvatar.vue';
 
@@ -145,6 +149,7 @@ const errorMessage = ref('');
 const isEditing = ref(false);
 const commentText = ref('');
 const selectedQuality = ref('');
+let processingPollTimerId = null;
 const videoTitle = computed(() => video.value?.title || video.value?.original_filename || 'Video');
 const canEdit = computed(() => Boolean(video.value && props.currentUser?.id === video.value.author_id));
 const qualityOptions = computed(() => {
@@ -180,7 +185,8 @@ const form = reactive({
   description: '',
 });
 
-async function loadCurrentVideo() {
+async function loadCurrentVideo(loadComments = true) {
+  stopProcessingPolling();
   isLoading.value = true;
   errorMessage.value = '';
 
@@ -188,12 +194,32 @@ async function loadCurrentVideo() {
     video.value = await props.loadVideo(route.params.videoId);
     resetSelectedQuality();
     resetForm();
-    await loadCurrentComments();
+    scheduleProcessingPolling();
+    if (loadComments) {
+      await loadCurrentComments();
+    }
   } catch (error) {
     video.value = null;
     errorMessage.value = error.message || 'Video not found.';
   } finally {
     isLoading.value = false;
+  }
+}
+
+function scheduleProcessingPolling() {
+  if (video.value?.status !== 'processing') {
+    return;
+  }
+
+  processingPollTimerId = window.setTimeout(() => {
+    loadCurrentVideo(false);
+  }, 5000);
+}
+
+function stopProcessingPolling() {
+  if (processingPollTimerId) {
+    clearTimeout(processingPollTimerId);
+    processingPollTimerId = null;
   }
 }
 
@@ -283,5 +309,6 @@ function formatDate(value) {
 }
 
 onMounted(loadCurrentVideo);
+onUnmounted(stopProcessingPolling);
 watch(() => route.params.videoId, loadCurrentVideo);
 </script>

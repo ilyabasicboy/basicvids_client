@@ -221,11 +221,16 @@ async function loadVideos(options = {}) {
 
 async function loadVideo(videoId) {
   const cachedVideo = videos.value.find((video) => video.id === videoId);
-  if (cachedVideo) {
+  if (cachedVideo?.status === 'ready') {
     return cachedVideo;
   }
 
-  return api.getVideo(videoId);
+  const video = await api.getVideo(videoId);
+  const existingIndex = videos.value.findIndex((item) => item.id === video.id);
+  if (existingIndex >= 0) {
+    videos.value = videos.value.map((item) => (item.id === video.id ? video : item));
+  }
+  return video;
 }
 
 async function loadComments(videoId) {
@@ -449,7 +454,7 @@ async function uploadSelectedVideo(upload) {
     uploadFile.value = null;
     await loadVideos();
     await router.push('/videos');
-    setMessage('Video uploaded.', 'success');
+    setMessage('Video uploaded. Processing started.', 'success');
   } catch (error) {
     setMessage(error.message, 'error');
   } finally {
