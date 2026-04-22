@@ -1,14 +1,12 @@
 <template>
   <section class="library-grid">
-    <article class="panel library-panel">
+    <article class="panel library-panel panel-flat">
       <div class="panel-heading inline">
         <div>
-          <p class="eyebrow">Videos</p>
-          <h2>Library</h2>
+          <p class="eyebrow">Home</p>
+          <h2>Videos</h2>
         </div>
         <div class="form-actions">
-          <RouterLink v-if="isAuthenticated" class="ghost-link" to="/user-videos">User videos</RouterLink>
-          <RouterLink v-else class="ghost-link" to="/auth">Sign in to upload</RouterLink>
           <button type="button" class="ghost-button" @click="loadVideos(currentPage)">Refresh</button>
         </div>
       </div>
@@ -24,7 +22,6 @@
             autocomplete="off"
           />
           <button type="submit" class="ghost-button">Search</button>
-          <button v-if="searchQuery" type="button" class="ghost-button" @click="clearSearch()">Clear</button>
         </div>
       </form>
 
@@ -35,23 +32,28 @@
       <div v-else class="video-list-frame" :class="{ loading: isLoadingVideos }">
         <ul class="video-list">
           <li v-for="video in displayedVideos" :key="video.id" class="video-item">
+            <article class="video-card">
             <RouterLink
               class="video-tile"
-            :class="{ fallback: !video.has_thumbnail }"
-            :style="videoTileStyle(video)"
-            :to="`/videos/${video.id}`"
-          >
-            <div v-if="!video.has_thumbnail" class="video-tile-initial">{{ getInitial(video.title || video.original_filename) }}</div>
-            <span class="video-play-icon" aria-hidden="true"></span>
-            <div class="video-tile-content">
+              :class="{ fallback: !video.has_thumbnail }"
+              :style="videoTileStyle(video)"
+              :to="`/videos/${video.id}`"
+            >
+              <div v-if="!video.has_thumbnail" class="video-tile-initial">{{ getInitial(video.title || video.original_filename) }}</div>
+              <span class="video-play-icon" aria-hidden="true"></span>
               <small v-if="video.status !== 'ready'" class="video-status-badge" :class="video.status">{{ statusLabel(video) }}</small>
-              <strong>{{ video.title || video.original_filename }}</strong>
-              <small class="video-author-line user-name-line">
+              <small v-if="video.duration_seconds" class="video-duration-badge">{{ formatDuration(video.duration_seconds) }}</small>
+            </RouterLink>
+            <div class="video-card-meta">
+              <RouterLink class="video-card-title-link" :to="`/videos/${video.id}`">
+                <strong class="video-card-title">{{ video.title || video.original_filename }}</strong>
+              </RouterLink>
+              <small class="video-author-line user-name-line video-card-author">
                 <UserAvatar :user-id="video.author_id" :label="authorLabel(video)" :avatar-url="avatarUrl" />
                 <span>{{ authorLabel(video) }}</span>
               </small>
-              </div>
-            </RouterLink>
+              <small class="video-card-age">{{ formatRelativeTime(video.created_at) }}</small>
+            </div>
             <button
               v-if="canDelete(video)"
               class="video-tile-delete"
@@ -61,6 +63,7 @@
             >
               X
             </button>
+            </article>
           </li>
         </ul>
         <div v-if="isLoadingVideos" class="video-list-loader" role="status" aria-label="Searching videos">
@@ -96,7 +99,7 @@
 </template>
 
 <script setup>
-import { computed, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 import UserAvatar from '../components/UserAvatar.vue';
 
@@ -118,7 +121,6 @@ const searchQuery = ref('');
 const currentPage = ref(1);
 const displayedVideos = ref([...props.videos]);
 let searchTimerId = null;
-let skipNextSearchWatch = false;
 
 const totalPages = computed(() => Math.max(1, Math.ceil(props.videosCount / pageSize)));
 const pageStart = computed(() => (props.videosCount === 0 ? 0 : (currentPage.value - 1) * pageSize + 1));
@@ -134,11 +136,6 @@ watch(
 );
 
 watch(searchQuery, () => {
-  if (skipNextSearchWatch) {
-    skipNextSearchWatch = false;
-    return;
-  }
-
   clearPendingSearchTimer();
 
   searchTimerId = window.setTimeout(() => {
@@ -148,6 +145,10 @@ watch(searchQuery, () => {
 
 onUnmounted(() => {
   clearPendingSearchTimer();
+});
+
+onMounted(() => {
+  loadVideos(1);
 });
 
 function clearPendingSearchTimer() {
@@ -175,13 +176,6 @@ function goToPage(page) {
   loadVideos(page);
 }
 
-function clearSearch() {
-  clearPendingSearchTimer();
-  skipNextSearchWatch = true;
-  searchQuery.value = '';
-  searchVideos();
-}
-
 function canDelete(video) {
   return Boolean(props.currentUser?.is_admin || (props.currentUser?.id && props.currentUser.id === video.author_id));
 }
@@ -206,6 +200,58 @@ function statusLabel(video) {
   }
 
   return 'Ready';
+}
+
+function pluralizeRu(value, forms) {
+  const mod10 = value % 10;
+  const mod100 = value % 100;
+
+  if (mod10 === 1 && mod100 !== 11) {
+    return forms[0];
+  }
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) {
+    return forms[1];
+  }
+  return forms[2];
+}
+
+function formatDuration(value) {
+  const totalSeconds = Math.max(0, Math.round(Number(value) || 0));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  }
+
+  return `${minutes}:${String(seconds).padStart(2, '0')}`;
+}
+
+function formatRelativeTime(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+
+  const diffSeconds = Math.max(0, Math.floor((Date.now() - date.getTime()) / 1000));
+  const ranges = [
+    { limit: 60, unitSeconds: 1, forms: ['секунду', 'секунды', 'секунд'] },
+    { limit: 3600, unitSeconds: 60, forms: ['минуту', 'минуты', 'минут'] },
+    { limit: 86400, unitSeconds: 3600, forms: ['час', 'часа', 'часов'] },
+    { limit: 2592000, unitSeconds: 86400, forms: ['день', 'дня', 'дней'] },
+    { limit: 31536000, unitSeconds: 2592000, forms: ['месяц', 'месяца', 'месяцев'] },
+    { limit: Number.POSITIVE_INFINITY, unitSeconds: 31536000, forms: ['год', 'года', 'лет'] },
+  ];
+
+  for (const range of ranges) {
+    if (diffSeconds < range.limit) {
+      const amount = Math.max(1, Math.floor(diffSeconds / range.unitSeconds));
+      return `${amount} ${pluralizeRu(amount, range.forms)} назад`;
+    }
+  }
+
+  return '';
 }
 
 function videoTileStyle(video) {

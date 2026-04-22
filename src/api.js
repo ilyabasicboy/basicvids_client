@@ -115,12 +115,15 @@ export const api = {
     });
   },
 
-  listVideos({ search = '', offset = 0, limit = 30 } = {}) {
+  listVideos({ search = '', offset = 0, limit = 30, authorId = null } = {}) {
     const params = new URLSearchParams();
     const cleanSearch = search.trim();
 
     if (cleanSearch) {
       params.set('search', cleanSearch);
+    }
+    if (authorId) {
+      params.set('author_id', String(authorId));
     }
     params.set('offset', String(offset));
     params.set('limit', String(limit));

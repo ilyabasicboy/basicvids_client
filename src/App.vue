@@ -1,60 +1,90 @@
 <template>
   <main class="app-shell">
-    <section class="workspace">
+    <section class="workspace" :class="{ collapsed: isSidebarCollapsed }">
       <aside class="sidebar" aria-label="BasicVids navigation">
-        <div class="brand">
+        <RouterLink class="brand" to="/videos" @click="closeUserMenu">
           <span class="brand-mark">BV</span>
-          <div>
+          <div v-if="!isSidebarCollapsed">
             <strong>BasicVids</strong>
-            <span>Video hosting</span>
+            <span>Home</span>
           </div>
-        </div>
+        </RouterLink>
 
         <nav class="nav-list" aria-label="Sections">
-          <RouterLink
+          <component
             v-for="item in navItems"
             :key="item.id"
-            :to="item.to"
+            :is="item.to ? RouterLink : 'button'"
+            :to="item.to || undefined"
+            type="button"
             class="nav-item"
-            :class="{ active: isNavActive(item) }"
+            :class="{ active: isNavActive(item), placeholder: !item.to }"
+            :disabled="!item.to"
+            @click="onNavItemClick(item)"
           >
-            <span>{{ item.label }}</span>
-            <small>{{ item.status }}</small>
-          </RouterLink>
+            <span v-if="!isSidebarCollapsed">{{ item.label }}</span>
+            <strong v-else>{{ item.shortLabel }}</strong>
+            <small v-if="!isSidebarCollapsed">{{ item.status }}</small>
+          </component>
         </nav>
 
-        <div class="gateway-box">
-          <span>Gateway</span>
-          <strong>{{ apiBaseUrl }}</strong>
-          <small>{{ gatewayStatus }}</small>
+        <button
+          type="button"
+          class="nav-item sidebar-toggle"
+          :class="{ collapsed: isSidebarCollapsed }"
+          :aria-expanded="String(!isSidebarCollapsed)"
+          :aria-label="isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+          @click="toggleSidebar"
+        >
+          <span class="sidebar-toggle-icon" aria-hidden="true">
+            <span></span>
+            <span></span>
+          </span>
+        </button>
+
+        <div ref="userMenuRef" class="user-menu sidebar-user-menu" :class="{ collapsed: isSidebarCollapsed }">
+          <button
+            type="button"
+            class="user-menu-trigger sidebar-user-trigger"
+            :aria-expanded="String(userMenuOpen)"
+            @click.stop="toggleUserMenu"
+          >
+            <UserAvatar :user-id="currentUser?.id || null" :label="userLabel" :avatar-url="avatarUrl" />
+            <span v-if="!isSidebarCollapsed">{{ userLabel }}</span>
+          </button>
+
+          <Transition name="dropdown">
+            <div v-if="userMenuOpen" class="user-menu-dropdown user-menu-dropdown-up">
+              <template v-if="isAuthenticated">
+                <RouterLink class="user-menu-link" to="/current-user" @click="closeUserMenu">
+                  User details
+                </RouterLink>
+                <RouterLink class="user-menu-link" to="/user-videos" @click="closeUserMenu">
+                  Videos
+                </RouterLink>
+                <button type="button" class="user-menu-link" @click="handleLogout">
+                  Log out
+                </button>
+              </template>
+              <template v-else>
+                <RouterLink class="user-menu-link" to="/auth" @click="closeUserMenu">
+                  Log in
+                </RouterLink>
+                <RouterLink class="user-menu-link" to="/create-account" @click="closeUserMenu">
+                  Create Account
+                </RouterLink>
+              </template>
+            </div>
+          </Transition>
         </div>
       </aside>
 
       <section class="content">
         <header class="topbar">
-          <div>
-            <p class="eyebrow">Workspace</p>
-            <h1>Manage videos, access, and service routes.</h1>
-          </div>
-          <div class="user-strip">
-            <UserAvatar :user-id="currentUser?.id || null" :label="userLabel" :avatar-url="avatarUrl" />
-            <span>{{ userLabel }}</span>
-            <RouterLink v-if="!isAuthenticated" class="ghost-link" to="/auth">Log in</RouterLink>
-            <button v-if="isAuthenticated" type="button" @click="logout()">Log out</button>
-          </div>
+          <button type="button" class="ghost-button mobile-sidebar-toggle" @click="toggleSidebar">
+            {{ isSidebarCollapsed ? 'Open menu' : 'Close menu' }}
+          </button>
         </header>
-
-        <section class="hero-panel" aria-label="Current video workspace">
-          <img
-            class="hero-image"
-            src="https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=1400&q=80"
-            alt="Camera and production monitor"
-          />
-          <div class="hero-overlay">
-            <p>Library</p>
-            <h2>{{ videosCount }} videos connected</h2>
-          </div>
-        </section>
 
         <RouterView v-slot="{ Component }">
           <component
@@ -114,9 +144,6 @@ import UserAvatar from './components/UserAvatar.vue';
 
 const route = useRoute();
 const router = useRouter();
-const gatewayStatus = ref('Checking...');
-const authStatus = ref('Checking...');
-const storageStatus = ref('Checking...');
 const videos = ref([]);
 const videosCount = ref(0);
 const isLoadingVideos = ref(false);
@@ -135,15 +162,17 @@ const authToken = ref(localStorage.getItem('basicvids_access_token'));
 const pendingConfirmCredentials = ref(null);
 const message = ref('');
 const messageType = ref('info');
+const isSidebarCollapsed = ref(false);
+const userMenuOpen = ref(false);
+const userMenuRef = ref(null);
 let messageTimerId = null;
 let videosRequestId = 0;
 
 const navItems = [
-  { id: 'videos', label: 'Videos', status: 'Storage', to: '/videos', activePaths: ['/videos'] },
-  { id: 'account', label: 'Account', status: 'Auth', to: '/account', activePaths: ['/account', '/auth', '/create-account', '/confirm-email', '/current-user', '/user-videos'] },
+  { id: 'home', label: 'Home', shortLabel: 'H', status: 'Videos', to: '/videos', activePaths: ['/videos'] },
+  { id: 'categories', label: 'Categories', shortLabel: 'C', status: 'Soon', to: null, activePaths: [] },
 ];
 
-const apiBaseUrl = computed(() => api.baseUrl);
 const isAuthenticated = computed(() => Boolean(authToken.value));
 const userLabel = computed(() => currentUser.value?.username || currentUser.value?.email || 'Guest');
 const currentUserText = computed(() => (currentUser.value ? JSON.stringify(currentUser.value, null, 2) : 'No signed-in user loaded.'));
@@ -165,35 +194,36 @@ function setMessage(text, type = 'info') {
 }
 
 function isNavActive(item) {
+  if (!item.to) {
+    return false;
+  }
+
   return item.activePaths.some((path) => route.path === path || route.path.startsWith(`${path}/`));
 }
 
-async function loadHealth() {
-  try {
-    await api.health();
-    gatewayStatus.value = 'Online';
-  } catch (error) {
-    gatewayStatus.value = 'Offline';
+function toggleSidebar() {
+  isSidebarCollapsed.value = !isSidebarCollapsed.value;
+}
+
+function onNavItemClick(item) {
+  if (!item.to) {
+    return;
   }
 
-  try {
-    const response = await fetch(`${api.baseUrl}/auth/health`);
-    if (!response.ok) {
-      throw new Error('Auth health check failed');
-    }
-    authStatus.value = 'Online';
-  } catch (error) {
-    authStatus.value = 'Offline';
-  }
+  closeUserMenu();
+}
 
-  try {
-    const response = await fetch(`${api.baseUrl}/storage/health`);
-    if (!response.ok) {
-      throw new Error('Storage health check failed');
-    }
-    storageStatus.value = 'Online';
-  } catch (error) {
-    storageStatus.value = 'Offline';
+function closeUserMenu() {
+  userMenuOpen.value = false;
+}
+
+function toggleUserMenu() {
+  userMenuOpen.value = !userMenuOpen.value;
+}
+
+function handleDocumentClick(event) {
+  if (!userMenuRef.value?.contains(event.target)) {
+    closeUserMenu();
   }
 }
 
@@ -263,7 +293,7 @@ async function login(credentials) {
   try {
     const response = await api.login(credentials.identifier, credentials.password);
     await applyAuthResponse(response);
-    await router.push('/account');
+    await router.push('/videos');
     setMessage('Signed in.', 'success');
   } catch (error) {
     if (error.message === 'Email is not confirmed') {
@@ -343,7 +373,7 @@ async function confirmEmail(data) {
       );
       await applyAuthResponse(response);
       pendingConfirmCredentials.value = null;
-      await router.push('/account');
+      await router.push('/videos');
       setMessage('Email confirmed. Signed in.', 'success');
       return;
     }
@@ -408,7 +438,7 @@ async function deleteUser() {
     }
     await api.deleteCurrentUser();
     logout('Account deleted.', 'success');
-    await router.push('/account');
+    await router.push('/videos');
   } catch (error) {
     setMessage(error.message, 'error');
   } finally {
@@ -421,7 +451,13 @@ function logout(text = 'Signed out.', type = 'info') {
   localStorage.removeItem('basicvids_refresh_token');
   authToken.value = null;
   currentUser.value = null;
+  closeUserMenu();
   setMessage(typeof text === 'string' ? text : 'Signed out.', type);
+}
+
+async function handleLogout() {
+  logout();
+  await router.push('/videos');
 }
 
 function onFileSelect(event) {
@@ -518,7 +554,12 @@ function avatarUrl(userId) {
 }
 
 onMounted(async () => {
-  await Promise.all([loadHealth(), loadVideos()]);
+  document.addEventListener('click', handleDocumentClick);
+  if (window.innerWidth <= 980) {
+    isSidebarCollapsed.value = true;
+  }
+
+  await loadVideos();
 
   if (localStorage.getItem('basicvids_access_token')) {
     try {
@@ -530,6 +571,7 @@ onMounted(async () => {
 });
 
 onUnmounted(() => {
+  document.removeEventListener('click', handleDocumentClick);
   if (messageTimerId) {
     clearTimeout(messageTimerId);
   }

@@ -1,5 +1,4 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
-import AccountPage from './views/AccountPage.vue';
 import ConfirmEmailPage from './views/ConfirmEmailPage.vue';
 import CreateAccountPage from './views/CreateAccountPage.vue';
 import CurrentUserPage from './views/CurrentUserPage.vue';
@@ -17,7 +16,6 @@ export const router = createRouter({
     { path: '/videos/upload', name: 'upload-video', component: UploadVideoPage },
     { path: '/videos/:videoId', name: 'video-player', component: VideoPlayerPage },
     { path: '/user-videos', name: 'user-videos', component: UserVideosPage },
-    { path: '/account', name: 'account', component: AccountPage },
     { path: '/auth', name: 'auth', component: LoginPage },
     { path: '/create-account', name: 'create-account', component: CreateAccountPage },
     { path: '/confirm-email', name: 'confirm-email', component: ConfirmEmailPage },
