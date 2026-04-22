@@ -38,7 +38,6 @@
         >
           <span class="sidebar-toggle-icon" aria-hidden="true">
             <span></span>
-            <span></span>
           </span>
         </button>
 

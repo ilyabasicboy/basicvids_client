@@ -46,7 +46,7 @@ button {
 }
 
 .workspace.collapsed {
-  grid-template-columns: 96px minmax(0, 1fr);
+  grid-template-columns: 68px minmax(0, 1fr);
 }
 
 .sidebar {
@@ -120,11 +120,6 @@ button {
   transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease;
 }
 
-.workspace.collapsed .nav-item {
-  justify-content: center;
-  padding-inline: 0;
-}
-
 .nav-item.active,
 .nav-item:not(.sidebar-toggle):hover:not(:disabled),
 .sidebar-toggle:hover {
@@ -176,30 +171,37 @@ button {
 }
 
 .sidebar-toggle-icon {
-  display: inline-flex;
-  gap: 2px;
-  align-items: center;
-  justify-content: center;
-  width: 18px;
-  height: 20px;
-}
-
-.sidebar-toggle:not(.collapsed) .sidebar-toggle-icon {
-  transform: translateX(3px);
+  position: relative;
+  display: block;
+  width: 12px;
+  height: 12px;
 }
 
 .sidebar-toggle-icon span {
+  position: absolute;
+  top: 50%;
+  left: 50%;
   display: block;
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-top: 2px solid currentColor;
   border-right: 2px solid currentColor;
-  transform: rotate(45deg);
+  transform: translate(-50%, -50%) rotate(45deg);
   transform-origin: center;
 }
 
 .sidebar-toggle:not(.collapsed) .sidebar-toggle-icon span {
-  transform: rotate(-135deg);
+  transform: translate(-50%, -50%) rotate(-135deg);
+}
+
+.workspace.collapsed .nav-list,
+.workspace.collapsed .sidebar-user-menu {
+  display: none;
+}
+
+.workspace.collapsed .sidebar {
+  padding-inline: 12px;
+  align-items: center;
 }
 
 .content {
@@ -712,15 +714,6 @@ h2 {
   text-decoration: none;
 }
 
-.video-tile::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(180deg, rgba(0, 0, 0, 0.14) 0%, rgba(0, 0, 0, 0.3) 42%, rgba(0, 0, 0, 0.82) 100%),
-    linear-gradient(90deg, rgba(0, 0, 0, 0.52) 0%, rgba(0, 0, 0, 0.16) 66%);
-}
-
 .video-tile.fallback {
   background:
     linear-gradient(135deg, #243b36 0%, #1b6b5b 52%, #d84f3f 100%);
@@ -846,7 +839,7 @@ h2 {
   place-items: center;
   width: 34px;
   height: 34px;
-  border: 1px solid rgba(255, 255, 255, 0.72);
+  border: 0;
   border-radius: 8px;
   padding: 0;
   color: #ffffff;
