@@ -86,6 +86,19 @@
           </button>
         </header>
 
+        <nav v-if="breadcrumbs.length > 0" class="breadcrumbs" aria-label="Breadcrumbs">
+          <RouterLink
+            v-for="(crumb, index) in breadcrumbs"
+            :key="`${crumb.label}-${crumb.to || index}`"
+            :to="crumb.to"
+            class="breadcrumb-link"
+            :class="{ current: index === breadcrumbs.length - 1 }"
+            :aria-current="index === breadcrumbs.length - 1 ? 'page' : undefined"
+          >
+            <span>{{ crumb.label }}</span>
+          </RouterLink>
+        </nav>
+
         <RouterView v-slot="{ Component }">
           <component
             :is="Component"
@@ -176,6 +189,62 @@ const navItems = [
 const isAuthenticated = computed(() => Boolean(authToken.value));
 const userLabel = computed(() => currentUser.value?.username || currentUser.value?.email || 'Guest');
 const currentUserText = computed(() => (currentUser.value ? JSON.stringify(currentUser.value, null, 2) : 'No signed-in user loaded.'));
+const breadcrumbs = computed(() => {
+  if (route.path === '/' || route.path === '/videos') {
+    return [{ label: 'Home', to: '/videos' }];
+  }
+
+  if (route.path === '/videos/upload') {
+    return [
+      { label: 'Home', to: '/videos' },
+      { label: 'Upload video', to: '/videos/upload' },
+    ];
+  }
+
+  if (route.path.startsWith('/videos/')) {
+    return [
+      { label: 'Home', to: '/videos' },
+      { label: 'Video', to: route.fullPath },
+    ];
+  }
+
+  if (route.path === '/user-videos') {
+    return [
+      { label: 'Home', to: '/videos' },
+      { label: 'User videos', to: '/user-videos' },
+    ];
+  }
+
+  if (route.path === '/current-user') {
+    return [
+      { label: 'Home', to: '/videos' },
+      { label: 'User details', to: '/current-user' },
+    ];
+  }
+
+  if (route.path === '/auth') {
+    return [
+      { label: 'Home', to: '/videos' },
+      { label: 'Log in', to: '/auth' },
+    ];
+  }
+
+  if (route.path === '/create-account') {
+    return [
+      { label: 'Home', to: '/videos' },
+      { label: 'Create account', to: '/create-account' },
+    ];
+  }
+
+  if (route.path === '/confirm-email') {
+    return [
+      { label: 'Home', to: '/videos' },
+      { label: 'Confirm email', to: route.fullPath },
+    ];
+  }
+
+  return [{ label: 'Home', to: '/videos' }];
+});
 
 function setMessage(text, type = 'info') {
   message.value = text;

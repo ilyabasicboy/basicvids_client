@@ -10,7 +10,6 @@
           <button v-if="canEdit" class="danger-button" type="button" @click="pendingDeleteVideo = video">
             Delete video
           </button>
-          <RouterLink class="ghost-link" to="/videos">Back to videos</RouterLink>
         </div>
       </div>
 

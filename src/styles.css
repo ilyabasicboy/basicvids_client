@@ -217,6 +217,34 @@ button {
   display: none;
 }
 
+.breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  min-height: 32px;
+}
+
+.breadcrumb-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #5d655f;
+  text-decoration: none;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.breadcrumb-link:not(:last-child)::after {
+  content: "/";
+  color: #9aa39e;
+}
+
+.breadcrumb-link.current {
+  color: #171717;
+  pointer-events: none;
+}
+
 .eyebrow {
   margin: 0 0 6px;
   color: #b43f33;

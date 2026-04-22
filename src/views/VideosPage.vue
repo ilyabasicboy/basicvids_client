@@ -3,7 +3,6 @@
     <article class="panel library-panel panel-flat">
       <div class="panel-heading inline">
         <div>
-          <p class="eyebrow">Home</p>
           <h2>Videos</h2>
         </div>
         <div class="form-actions">
