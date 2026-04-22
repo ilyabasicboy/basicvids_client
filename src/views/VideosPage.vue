@@ -54,7 +54,9 @@
                 >
                   <div v-if="!video.has_thumbnail" class="video-tile-initial">{{ getInitial(video.title || video.original_filename) }}</div>
                   <small v-if="video.status !== 'ready'" class="video-status-badge" :class="video.status">{{ statusLabel(video) }}</small>
-                  <small v-if="video.duration_seconds" class="video-duration-badge">{{ formatDuration(video.duration_seconds) }}</small>
+                  <small v-if="video.duration_seconds" class="video-duration-badge">
+                    <span class="video-duration-text">{{ formatDuration(video.duration_seconds) }}</span>
+                  </small>
                 </div>
                 <div class="video-card-meta">
                   <div class="video-card-title-link">
