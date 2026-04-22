@@ -7,7 +7,7 @@
           <h2>{{ videoTitle }}</h2>
         </div>
         <div class="form-actions">
-          <button v-if="canEdit" class="danger-button" type="button" @click="$emit('delete-video', video)">
+          <button v-if="canEdit" class="danger-button" type="button" @click="pendingDeleteVideo = video">
             Delete video
           </button>
           <RouterLink class="ghost-link" to="/videos">Back to videos</RouterLink>
@@ -74,6 +74,28 @@
           </template>
         </div>
       </form>
+
+      <Transition name="modal">
+        <div v-if="pendingDeleteVideo" class="modal-backdrop" role="presentation" @click.self="closeDeleteModal">
+          <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="delete-player-video-title">
+            <div class="panel-heading">
+              <p class="eyebrow">Confirm</p>
+              <h2 id="delete-player-video-title">Delete video</h2>
+            </div>
+            <p class="modal-copy">
+              Delete "{{ pendingDeleteVideo.title || pendingDeleteVideo.original_filename }}"?
+            </p>
+            <div class="form-actions">
+              <button class="danger-button" type="button" @click="confirmDeleteVideo">
+                Delete video
+              </button>
+              <button class="ghost-button" type="button" @click="closeDeleteModal">
+                Cancel
+              </button>
+            </div>
+          </section>
+        </div>
+      </Transition>
     </article>
 
     <article v-if="video" class="panel comments-panel">
@@ -149,6 +171,7 @@ const errorMessage = ref('');
 const isEditing = ref(false);
 const commentText = ref('');
 const selectedQuality = ref('');
+const pendingDeleteVideo = ref(null);
 let processingPollTimerId = null;
 const videoTitle = computed(() => video.value?.title || video.value?.original_filename || 'Video');
 const canEdit = computed(() => Boolean(video.value && props.currentUser?.id === video.value.author_id));
@@ -288,6 +311,17 @@ async function submitComment() {
 async function removeComment(comment) {
   await props.deleteComment(comment.id);
   comments.value = comments.value.filter((item) => item.id !== comment.id);
+}
+
+function closeDeleteModal() {
+  pendingDeleteVideo.value = null;
+}
+
+function confirmDeleteVideo() {
+  if (pendingDeleteVideo.value) {
+    emit('delete-video', pendingDeleteVideo.value);
+    closeDeleteModal();
+  }
 }
 
 function canDeleteComment(comment) {

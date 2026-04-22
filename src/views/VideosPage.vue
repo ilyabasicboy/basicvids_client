@@ -7,20 +7,34 @@
           <h2>Videos</h2>
         </div>
         <div class="form-actions">
-          <button type="button" class="ghost-button" @click="loadVideos(currentPage)">Refresh</button>
+          <button type="button" class="ghost-button icon-button" aria-label="Refresh videos" @click="loadVideos(currentPage)">
+            ↻
+          </button>
         </div>
       </div>
 
       <form class="video-search-form" role="search" @submit.prevent="searchVideos()">
         <label for="video-search">Search videos</label>
         <div class="video-search-row">
-          <input
-            id="video-search"
-            v-model="searchQuery"
-            type="search"
-            placeholder="Search by title or description"
-            autocomplete="off"
-          />
+          <div class="search-input-wrap">
+            <input
+              id="video-search"
+              v-model="searchQuery"
+              type="search"
+              class="search-input"
+              placeholder="Search by title or description"
+              autocomplete="off"
+            />
+            <button
+              v-if="searchQuery"
+              type="button"
+              class="search-clear-button"
+              aria-label="Clear search"
+              @click="clearSearch"
+            >
+              ×
+            </button>
+          </div>
           <button type="submit" class="ghost-button">Search</button>
         </div>
       </form>
@@ -33,36 +47,36 @@
         <ul class="video-list">
           <li v-for="video in displayedVideos" :key="video.id" class="video-item">
             <article class="video-card">
-            <RouterLink
-              class="video-tile"
-              :class="{ fallback: !video.has_thumbnail }"
-              :style="videoTileStyle(video)"
-              :to="`/videos/${video.id}`"
-            >
-              <div v-if="!video.has_thumbnail" class="video-tile-initial">{{ getInitial(video.title || video.original_filename) }}</div>
-              <span class="video-play-icon" aria-hidden="true"></span>
-              <small v-if="video.status !== 'ready'" class="video-status-badge" :class="video.status">{{ statusLabel(video) }}</small>
-              <small v-if="video.duration_seconds" class="video-duration-badge">{{ formatDuration(video.duration_seconds) }}</small>
-            </RouterLink>
-            <div class="video-card-meta">
-              <RouterLink class="video-card-title-link" :to="`/videos/${video.id}`">
+              <RouterLink class="video-card-link" :to="`/videos/${video.id}`">
+                <div
+                  class="video-tile"
+                  :class="{ fallback: !video.has_thumbnail }"
+                  :style="videoTileStyle(video)"
+                >
+                  <div v-if="!video.has_thumbnail" class="video-tile-initial">{{ getInitial(video.title || video.original_filename) }}</div>
+                  <small v-if="video.status !== 'ready'" class="video-status-badge" :class="video.status">{{ statusLabel(video) }}</small>
+                  <small v-if="video.duration_seconds" class="video-duration-badge">{{ formatDuration(video.duration_seconds) }}</small>
+                </div>
+                <div class="video-card-meta">
+                  <div class="video-card-title-link">
                 <strong class="video-card-title">{{ video.title || video.original_filename }}</strong>
+                  </div>
+                  <small class="video-author-line user-name-line video-card-author">
+                    <UserAvatar :user-id="video.author_id" :label="authorLabel(video)" :avatar-url="avatarUrl" />
+                    <span>{{ authorLabel(video) }}</span>
+                  </small>
+                  <small class="video-card-age">{{ formatRelativeTime(video.created_at) }}</small>
+                </div>
               </RouterLink>
-              <small class="video-author-line user-name-line video-card-author">
-                <UserAvatar :user-id="video.author_id" :label="authorLabel(video)" :avatar-url="avatarUrl" />
-                <span>{{ authorLabel(video) }}</span>
-              </small>
-              <small class="video-card-age">{{ formatRelativeTime(video.created_at) }}</small>
-            </div>
-            <button
-              v-if="canDelete(video)"
-              class="video-tile-delete"
-              type="button"
-              :aria-label="`Delete ${video.title || video.original_filename}`"
-              @click="$emit('delete-video', video)"
-            >
-              X
-            </button>
+              <button
+                v-if="canDelete(video)"
+                class="video-tile-delete"
+                type="button"
+                :aria-label="`Delete ${video.title || video.original_filename}`"
+                @click="requestDeleteVideo(video)"
+              >
+                X
+              </button>
             </article>
           </li>
         </ul>
@@ -94,6 +108,28 @@
         </button>
         <span class="pagination-range">{{ pageStart }}-{{ pageEnd }} of {{ videosCount }}</span>
       </nav>
+
+      <Transition name="modal">
+        <div v-if="pendingDeleteVideo" class="modal-backdrop" role="presentation" @click.self="closeDeleteModal">
+          <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="delete-video-title">
+            <div class="panel-heading">
+              <p class="eyebrow">Confirm</p>
+              <h2 id="delete-video-title">Delete video</h2>
+            </div>
+            <p class="modal-copy">
+              Delete "{{ pendingDeleteVideo.title || pendingDeleteVideo.original_filename }}"?
+            </p>
+            <div class="form-actions">
+              <button class="danger-button" type="button" @click="confirmDeleteVideo">
+                Delete video
+              </button>
+              <button class="ghost-button" type="button" @click="closeDeleteModal">
+                Cancel
+              </button>
+            </div>
+          </section>
+        </div>
+      </Transition>
     </article>
   </section>
 </template>
@@ -120,6 +156,7 @@ const pageSize = 30;
 const searchQuery = ref('');
 const currentPage = ref(1);
 const displayedVideos = ref([...props.videos]);
+const pendingDeleteVideo = ref(null);
 let searchTimerId = null;
 
 const totalPages = computed(() => Math.max(1, Math.ceil(props.videosCount / pageSize)));
@@ -163,6 +200,12 @@ function searchVideos() {
   loadVideos(1);
 }
 
+function clearSearch() {
+  clearPendingSearchTimer();
+  searchQuery.value = '';
+  loadVideos(1);
+}
+
 function loadVideos(page = currentPage.value) {
   currentPage.value = Math.min(Math.max(page, 1), totalPages.value);
   emit('load-videos', {
@@ -178,6 +221,21 @@ function goToPage(page) {
 
 function canDelete(video) {
   return Boolean(props.currentUser?.is_admin || (props.currentUser?.id && props.currentUser.id === video.author_id));
+}
+
+function requestDeleteVideo(video) {
+  pendingDeleteVideo.value = video;
+}
+
+function closeDeleteModal() {
+  pendingDeleteVideo.value = null;
+}
+
+function confirmDeleteVideo() {
+  if (pendingDeleteVideo.value) {
+    emit('delete-video', pendingDeleteVideo.value);
+    closeDeleteModal();
+  }
 }
 
 function authorLabel(video) {
