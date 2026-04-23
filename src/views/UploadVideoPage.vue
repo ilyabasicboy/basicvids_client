@@ -36,6 +36,17 @@
         <button class="primary-button" type="submit" :disabled="!form.file || !form.title || isUploading">
           {{ isUploading ? 'Uploading...' : 'Upload video' }}
         </button>
+
+        <div v-if="isUploading || uploadProgress > 0" class="upload-progress-card">
+          <div class="upload-progress-head">
+            <strong>{{ uploadStatus }}</strong>
+            <span>{{ uploadProgress }}%</span>
+          </div>
+          <div class="upload-progress-bar" aria-hidden="true">
+            <span :style="{ width: `${uploadProgress}%` }"></span>
+          </div>
+          <small>{{ uploadProgressText }}</small>
+        </div>
       </form>
     </article>
 
@@ -59,6 +70,9 @@ defineProps({
   isAuthenticated: { type: Boolean, default: false },
   isUploading: { type: Boolean, default: false },
   formatBytes: { type: Function, required: true },
+  uploadProgress: { type: Number, default: 0 },
+  uploadProgressText: { type: String, default: '' },
+  uploadStatus: { type: String, default: '' },
 });
 
 const emit = defineEmits(['upload-video']);

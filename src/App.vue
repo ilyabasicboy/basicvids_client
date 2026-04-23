@@ -117,12 +117,16 @@
             :is-loading-videos="isLoadingVideos"
             :is-signing-in="isSigningIn"
             :is-uploading="isUploading"
+            :upload-progress="uploadProgress"
+            :upload-progress-text="uploadProgressText"
+            :upload-status="uploadStatus"
             :load-video="loadVideo"
             :load-comments="loadComments"
             :create-comment="createComment"
             :delete-comment="deleteComment"
             :upload-file="uploadFile"
             :video-thumbnail-url="videoThumbnailUrl"
+            :video-hls-url="videoHlsUrl"
             :video-url="videoUrl"
             :videos="videos"
             :videos-count="videosCount"
@@ -161,6 +165,9 @@ const videosCount = ref(0);
 const isLoadingVideos = ref(false);
 const uploadFile = ref(null);
 const isUploading = ref(false);
+const uploadProgress = ref(0);
+const uploadProgressText = ref('');
+const uploadStatus = ref('');
 const isChangingVideo = ref(false);
 const isChangingUser = ref(false);
 const isChangingPassword = ref(false);
@@ -536,6 +543,91 @@ function onDrop(event) {
   uploadFile.value = event.dataTransfer.files?.[0] || null;
 }
 
+function setUploadState(progress, status, text = '') {
+  uploadProgress.value = Math.max(0, Math.min(100, Math.round(progress)));
+  uploadStatus.value = status;
+  uploadProgressText.value = text;
+}
+
+function clearUploadState() {
+  uploadProgress.value = 0;
+  uploadStatus.value = '';
+  uploadProgressText.value = '';
+}
+
+function resumableUploadStorageKey(file) {
+  return [
+    'basicvids_resumable_upload',
+    currentUser.value?.id || 'guest',
+    file.name,
+    file.size,
+    file.lastModified,
+    file.type || 'application/octet-stream',
+  ].join(':');
+}
+
+function loadSavedUploadSession(file) {
+  try {
+    const rawValue = localStorage.getItem(resumableUploadStorageKey(file));
+    return rawValue ? JSON.parse(rawValue) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveUploadSession(file, payload) {
+  localStorage.setItem(resumableUploadStorageKey(file), JSON.stringify(payload));
+}
+
+function clearSavedUploadSession(file) {
+  localStorage.removeItem(resumableUploadStorageKey(file));
+}
+
+async function ensureUploadSession(file, upload) {
+  const savedSession = loadSavedUploadSession(file);
+  if (savedSession?.uploadId) {
+    try {
+      const existingSession = await api.getVideoUploadSession(savedSession.uploadId);
+      if (
+        existingSession.original_filename === file.name
+        && existingSession.total_size_bytes === file.size
+        && existingSession.content_type === (file.type || 'video/mp4')
+      ) {
+        return existingSession;
+      }
+    } catch {
+      clearSavedUploadSession(file);
+    }
+  }
+
+  const createdSession = await api.createVideoUploadSession({
+    title: upload?.title?.trim() || file.name,
+    description: upload?.description?.trim() || null,
+    original_filename: file.name,
+    content_type: file.type || 'video/mp4',
+    total_size_bytes: file.size,
+  });
+  saveUploadSession(file, { uploadId: createdSession.id });
+  return createdSession;
+}
+
+async function waitForVideoReady(videoId, attempts = 90, delayMs = 2000) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const video = await api.getVideo(videoId);
+    if (video.status === 'ready') {
+      return video;
+    }
+    if (video.status === 'failed') {
+      throw new Error(video.processing_error || 'Video processing failed.');
+    }
+    await new Promise((resolve) => {
+      window.setTimeout(resolve, delayMs);
+    });
+  }
+
+  throw new Error('Video processing is taking too long.');
+}
+
 async function uploadSelectedVideo(upload) {
   if (!isAuthenticated.value) {
     setMessage('Sign in to upload videos.', 'error');
@@ -549,17 +641,51 @@ async function uploadSelectedVideo(upload) {
   }
 
   isUploading.value = true;
+  clearUploadState();
   try {
-    await api.uploadVideo(file, {
-      title: upload?.title,
-      description: upload?.description,
-      thumbnail: upload?.thumbnail,
-    });
+    let uploadSession = await ensureUploadSession(file, upload);
+    const totalChunks = uploadSession.total_chunks || Math.ceil(file.size / uploadSession.chunk_size_bytes);
+    let uploadedBytes = uploadSession.received_size_bytes || 0;
+    setUploadState(
+      (uploadedBytes / Math.max(file.size, 1)) * 100,
+      'Uploading video',
+      `${formatBytes(uploadedBytes)} of ${formatBytes(file.size)}`,
+    );
+
+    for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex += 1) {
+      if ((uploadSession.received_chunks || []).includes(chunkIndex)) {
+        continue;
+      }
+
+      const chunkStart = chunkIndex * uploadSession.chunk_size_bytes;
+      const chunkEnd = Math.min(chunkStart + uploadSession.chunk_size_bytes, file.size);
+      const chunk = file.slice(chunkStart, chunkEnd);
+      uploadSession = await api.uploadVideoChunk(uploadSession.id, chunkIndex, chunk);
+      uploadedBytes = uploadSession.received_size_bytes || chunkEnd;
+      setUploadState(
+        (uploadedBytes / Math.max(file.size, 1)) * 100,
+        'Uploading video',
+        `${formatBytes(uploadedBytes)} of ${formatBytes(file.size)}`,
+      );
+    }
+
+    setUploadState(100, 'Finalizing upload', 'Assembling file and starting processing');
+    const createdVideo = await api.completeVideoUploadSession(uploadSession.id);
+    clearSavedUploadSession(file);
+
+    if (upload?.thumbnail) {
+      setUploadState(100, 'Processing video', 'Waiting until thumbnail can be attached');
+      await waitForVideoReady(createdVideo.id);
+      await api.uploadVideoThumbnail(createdVideo.id, upload.thumbnail);
+    }
+
     uploadFile.value = null;
+    clearUploadState();
     await loadVideos();
     await router.push('/videos');
     setMessage('Video uploaded. Processing started.', 'success');
   } catch (error) {
+    setUploadState(uploadProgress.value, 'Upload paused', 'Retry the same file to continue from the last uploaded chunk.');
     setMessage(error.message, 'error');
   } finally {
     isUploading.value = false;
@@ -611,6 +737,10 @@ function getInitial(value = '') {
 
 function videoUrl(videoId, quality = null) {
   return api.videoUrl(videoId, quality);
+}
+
+function videoHlsUrl(videoId) {
+  return api.videoHlsUrl(videoId);
 }
 
 function videoThumbnailUrl(videoId) {

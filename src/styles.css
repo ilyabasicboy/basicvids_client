@@ -521,6 +521,46 @@ h2 {
   background: #aeb8bb;
 }
 
+.upload-progress-card {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid #d7dee2;
+  border-radius: 8px;
+  background: #f7faf8;
+}
+
+.upload-progress-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.upload-progress-head strong {
+  color: #243b36;
+}
+
+.upload-progress-head span,
+.upload-progress-card small {
+  color: #5d655f;
+}
+
+.upload-progress-bar {
+  overflow: hidden;
+  height: 10px;
+  border-radius: 999px;
+  background: #dce7e0;
+}
+
+.upload-progress-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #d84f3f 0%, #e57c58 100%);
+  transition: width 180ms ease;
+}
+
 .video-search-form {
   display: grid;
   gap: 8px;

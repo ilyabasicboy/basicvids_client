@@ -16,17 +16,9 @@
       <div v-if="isLoading" class="empty-state">Loading video...</div>
       <div v-else-if="errorMessage" class="empty-state">{{ errorMessage }}</div>
       <div v-else-if="video?.status === 'ready'" class="video-player-area">
-        <video class="video-player" :src="currentVideoUrl" controls preload="metadata">
+        <video ref="videoElement" class="video-player" controls preload="metadata">
           Your browser cannot play this video.
         </video>
-        <label v-if="qualityOptions.length > 1" class="quality-select">
-          <span>Quality</span>
-          <select v-model="selectedQuality">
-            <option v-for="quality in qualityOptions" :key="quality.value" :value="quality.value">
-              {{ quality.label }}
-            </option>
-          </select>
-        </label>
       </div>
       <div v-else-if="video?.status === 'processing'" class="empty-state">Video is still processing.</div>
       <div v-else-if="video?.status === 'failed'" class="empty-state">
@@ -141,7 +133,8 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import Hls from 'hls.js';
+import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import UserAvatar from '../components/UserAvatar.vue';
 
@@ -154,11 +147,12 @@ const props = defineProps({
   isChangingVideo: { type: Boolean, default: false },
   loadComments: { type: Function, required: true },
   loadVideo: { type: Function, required: true },
+  videoHlsUrl: { type: Function, required: true },
   videoUrl: { type: Function, required: true },
   avatarUrl: { type: Function, required: true },
 });
 
-defineEmits(['delete-video']);
+const emit = defineEmits(['delete-video']);
 
 const route = useRoute();
 const video = ref(null);
@@ -169,24 +163,26 @@ const isCreatingComment = ref(false);
 const errorMessage = ref('');
 const isEditing = ref(false);
 const commentText = ref('');
-const selectedQuality = ref('');
 const pendingDeleteVideo = ref(null);
+const videoElement = ref(null);
+let hlsPlayer = null;
+let hlsFallbackTimerId = null;
 let processingPollTimerId = null;
 const videoTitle = computed(() => video.value?.title || video.value?.original_filename || 'Video');
 const canEdit = computed(() => Boolean(video.value && props.currentUser?.id === video.value.author_id));
-const qualityOptions = computed(() => {
-  const qualities = video.value?.qualities || [];
-  return qualities.map((quality) => ({
-    value: String(quality.quality),
-    label: quality.label || `${quality.quality}p`,
-  }));
+const hlsVideoUrl = computed(() => {
+  if (!video.value?.has_hls) {
+    return '';
+  }
+
+  return props.videoHlsUrl(video.value.id);
 });
-const currentVideoUrl = computed(() => {
+const fallbackVideoUrl = computed(() => {
   if (!video.value) {
     return '';
   }
 
-  return props.videoUrl(video.value.id, selectedQuality.value || null);
+  return props.videoUrl(video.value.id);
 });
 const authorLabel = computed(() => {
   if (!video.value) {
@@ -214,7 +210,6 @@ async function loadCurrentVideo(loadComments = true) {
 
   try {
     video.value = await props.loadVideo(route.params.videoId);
-    resetSelectedQuality();
     resetForm();
     scheduleProcessingPolling();
     if (loadComments) {
@@ -264,12 +259,6 @@ async function loadCurrentComments() {
 function resetForm() {
   form.title = video.value?.title || '';
   form.description = video.value?.description || '';
-}
-
-function resetSelectedQuality() {
-  const qualities = video.value?.qualities || [];
-  const bestQuality = qualities.reduce((best, quality) => (quality.quality > best.quality ? quality : best), qualities[0]);
-  selectedQuality.value = bestQuality ? String(bestQuality.quality) : '';
 }
 
 function startEditing() {
@@ -341,7 +330,98 @@ function formatDate(value) {
   return value ? new Date(value).toLocaleString() : '';
 }
 
+function destroyHlsPlayer() {
+  if (hlsPlayer) {
+    hlsPlayer.destroy();
+    hlsPlayer = null;
+  }
+}
+
+function clearHlsFallbackTimer() {
+  if (hlsFallbackTimerId) {
+    window.clearTimeout(hlsFallbackTimerId);
+    hlsFallbackTimerId = null;
+  }
+}
+
+function resetVideoElement(player) {
+  player.pause();
+  player.removeAttribute('src');
+  player.srcObject = null;
+  player.load();
+}
+
+function attachFallbackSource(player) {
+  clearHlsFallbackTimer();
+  if (!fallbackVideoUrl.value) {
+    return;
+  }
+
+  player.src = fallbackVideoUrl.value;
+  player.load();
+}
+
+async function attachVideoSource() {
+  await nextTick();
+
+  const player = videoElement.value;
+  destroyHlsPlayer();
+  clearHlsFallbackTimer();
+
+  if (!player || video.value?.status !== 'ready') {
+    return;
+  }
+
+  resetVideoElement(player);
+
+  if (hlsVideoUrl.value) {
+    if (player.canPlayType('application/vnd.apple.mpegurl')) {
+      player.src = hlsVideoUrl.value;
+      player.load();
+      return;
+    }
+
+    if (Hls.isSupported()) {
+      hlsPlayer = new Hls();
+      hlsFallbackTimerId = window.setTimeout(() => {
+        destroyHlsPlayer();
+        resetVideoElement(player);
+        attachFallbackSource(player);
+      }, 1500);
+      hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => {
+        clearHlsFallbackTimer();
+      });
+      hlsPlayer.on(Hls.Events.ERROR, (_event, data) => {
+        if (!data?.fatal) {
+          return;
+        }
+
+        destroyHlsPlayer();
+        resetVideoElement(player);
+        attachFallbackSource(player);
+      });
+      hlsPlayer.loadSource(hlsVideoUrl.value);
+      hlsPlayer.attachMedia(player);
+      return;
+    }
+  }
+
+  attachFallbackSource(player);
+}
+
 onMounted(loadCurrentVideo);
-onUnmounted(stopProcessingPolling);
+onUnmounted(() => {
+  stopProcessingPolling();
+  clearHlsFallbackTimer();
+  destroyHlsPlayer();
+});
 watch(() => route.params.videoId, loadCurrentVideo);
+watch(
+  () => [video.value?.id, video.value?.status, video.value?.has_hls, isLoading.value],
+  ([, status, , loading]) => {
+    if (!loading && status === 'ready') {
+      attachVideoSource();
+    }
+  },
+);
 </script>

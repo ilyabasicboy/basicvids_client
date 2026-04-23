@@ -34,6 +34,6 @@ http://localhost:5173
 | Auth login | `/api/v1/auth/login/` |
 | Current user | `/api/v1/users/detail/` |
 | Video list | `/api/v1/videos/` |
-| Video upload | `/api/v1/videos/upload/` |
+| Video upload | `/api/v1/videos/uploads/` |
 
 Future microservices should be added behind the gateway and then wired into `src/api.js`.

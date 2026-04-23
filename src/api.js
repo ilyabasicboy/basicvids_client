@@ -136,19 +136,45 @@ export const api = {
     return request(`/api/v1/videos/${videoId}`);
   },
 
-  uploadVideo(file, metadata = {}) {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('title', metadata.title || file.name);
-    if (metadata.description) {
-      formData.append('description', metadata.description);
-    }
-    if (metadata.thumbnail) {
-      formData.append('thumbnail', metadata.thumbnail);
-    }
-
-    return request('/api/v1/videos/upload/', {
+  createVideoUploadSession(payload) {
+    return request('/api/v1/videos/uploads/', {
       method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  getVideoUploadSession(uploadId) {
+    return request(`/api/v1/videos/uploads/${uploadId}`);
+  },
+
+  uploadVideoChunk(uploadId, chunkIndex, chunk) {
+    return request(`/api/v1/videos/uploads/${uploadId}/chunks/${chunkIndex}`, {
+      method: 'PUT',
+      body: chunk,
+      headers: {
+        'Content-Type': 'application/octet-stream',
+      },
+    });
+  },
+
+  completeVideoUploadSession(uploadId) {
+    return request(`/api/v1/videos/uploads/${uploadId}/complete/`, {
+      method: 'POST',
+    });
+  },
+
+  deleteVideoUploadSession(uploadId) {
+    return request(`/api/v1/videos/uploads/${uploadId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  uploadVideoThumbnail(videoId, thumbnail) {
+    const formData = new FormData();
+    formData.append('thumbnail', thumbnail);
+
+    return request(`/api/v1/videos/${videoId}/thumbnail/`, {
+      method: 'PUT',
       body: formData,
       headers: {},
     });
@@ -193,6 +219,10 @@ export const api = {
 
     const queryString = params.toString();
     return `${API_BASE_URL}/api/v1/videos/${videoId}/download/${queryString ? `?${queryString}` : ''}`;
+  },
+
+  videoHlsUrl(videoId) {
+    return `${API_BASE_URL}/api/v1/videos/${videoId}/hls/master.m3u8`;
   },
 
   videoThumbnailUrl(videoId) {
