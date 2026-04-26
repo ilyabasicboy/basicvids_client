@@ -11,6 +11,7 @@
   "dependencies": {
     "@vitejs/plugin-vue": "^5.2.3",
     "hls.js": "^1.6.16",
+    "vidstack": "^0.6.15",
     "vite": "^6.2.5",
     "vue": "^3.5.13",
     "vue-router": "^4.6.4"

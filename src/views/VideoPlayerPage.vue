@@ -16,9 +16,29 @@
       <div v-if="isLoading" class="empty-state">Loading video...</div>
       <div v-else-if="errorMessage" class="empty-state">{{ errorMessage }}</div>
       <div v-else-if="video?.status === 'ready'" class="video-player-area">
-        <video ref="videoElement" class="video-player" controls preload="metadata">
-          Your browser cannot play this video.
-        </video>
+        <div v-if="showFallbackQualitySelect" class="quality-select">
+          <span>Quality</span>
+          <select v-model="selectedQuality">
+            <option v-for="quality in sortedQualities" :key="quality.height" :value="String(quality.height)">
+              {{ quality.height }}p
+            </option>
+          </select>
+        </div>
+        <media-player
+          :key="playerKey"
+          class="video-player"
+          load="eager"
+          preload="metadata"
+          playsinline
+          stream-type="on-demand"
+          view-type="video"
+          :title="videoTitle"
+          :src="activePlayerSource"
+          :poster="posterUrl"
+        >
+          <media-outlet></media-outlet>
+          <media-community-skin></media-community-skin>
+        </media-player>
       </div>
       <div v-else-if="video?.status === 'processing'" class="empty-state">Video is still processing.</div>
       <div v-else-if="video?.status === 'failed'" class="empty-state">
@@ -133,8 +153,7 @@
 </template>
 
 <script setup>
-import Hls from 'hls.js';
-import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import UserAvatar from '../components/UserAvatar.vue';
 
@@ -147,6 +166,7 @@ const props = defineProps({
   isChangingVideo: { type: Boolean, default: false },
   loadComments: { type: Function, required: true },
   loadVideo: { type: Function, required: true },
+  videoThumbnailUrl: { type: Function, required: true },
   videoHlsUrl: { type: Function, required: true },
   videoUrl: { type: Function, required: true },
   avatarUrl: { type: Function, required: true },
@@ -164,26 +184,25 @@ const errorMessage = ref('');
 const isEditing = ref(false);
 const commentText = ref('');
 const pendingDeleteVideo = ref(null);
-const videoElement = ref(null);
-let hlsPlayer = null;
-let hlsFallbackTimerId = null;
 let processingPollTimerId = null;
+const selectedQuality = ref('');
 const videoTitle = computed(() => video.value?.title || video.value?.original_filename || 'Video');
 const canEdit = computed(() => Boolean(video.value && props.currentUser?.id === video.value.author_id));
-const hlsVideoUrl = computed(() => {
-  if (!video.value?.has_hls) {
-    return '';
-  }
-
-  return props.videoHlsUrl(video.value.id);
-});
-const fallbackVideoUrl = computed(() => {
+const sortedQualities = computed(() => [...(video.value?.qualities || [])].sort((left, right) => right.height - left.height));
+const showFallbackQualitySelect = computed(() => !video.value?.has_hls && sortedQualities.value.length > 1);
+const posterUrl = computed(() => (video.value ? props.videoThumbnailUrl(video.value.id) : ''));
+const activePlayerSource = computed(() => {
   if (!video.value) {
     return '';
   }
 
-  return props.videoUrl(video.value.id);
+  if (video.value.has_hls) {
+    return props.videoHlsUrl(video.value.id);
+  }
+
+  return props.videoUrl(video.value.id, selectedQuality.value || null);
 });
+const playerKey = computed(() => `${video.value?.id || 'video'}:${activePlayerSource.value}`);
 const authorLabel = computed(() => {
   if (!video.value) {
     return 'Unknown author';
@@ -211,6 +230,7 @@ async function loadCurrentVideo(loadComments = true) {
   try {
     video.value = await props.loadVideo(route.params.videoId);
     resetForm();
+    resetSelectedQuality();
     scheduleProcessingPolling();
     if (loadComments) {
       await loadCurrentComments();
@@ -259,6 +279,10 @@ async function loadCurrentComments() {
 function resetForm() {
   form.title = video.value?.title || '';
   form.description = video.value?.description || '';
+}
+
+function resetSelectedQuality() {
+  selectedQuality.value = sortedQualities.value[0] ? String(sortedQualities.value[0].height) : '';
 }
 
 function startEditing() {
@@ -330,98 +354,10 @@ function formatDate(value) {
   return value ? new Date(value).toLocaleString() : '';
 }
 
-function destroyHlsPlayer() {
-  if (hlsPlayer) {
-    hlsPlayer.destroy();
-    hlsPlayer = null;
-  }
-}
-
-function clearHlsFallbackTimer() {
-  if (hlsFallbackTimerId) {
-    window.clearTimeout(hlsFallbackTimerId);
-    hlsFallbackTimerId = null;
-  }
-}
-
-function resetVideoElement(player) {
-  player.pause();
-  player.removeAttribute('src');
-  player.srcObject = null;
-  player.load();
-}
-
-function attachFallbackSource(player) {
-  clearHlsFallbackTimer();
-  if (!fallbackVideoUrl.value) {
-    return;
-  }
-
-  player.src = fallbackVideoUrl.value;
-  player.load();
-}
-
-async function attachVideoSource() {
-  await nextTick();
-
-  const player = videoElement.value;
-  destroyHlsPlayer();
-  clearHlsFallbackTimer();
-
-  if (!player || video.value?.status !== 'ready') {
-    return;
-  }
-
-  resetVideoElement(player);
-
-  if (hlsVideoUrl.value) {
-    if (player.canPlayType('application/vnd.apple.mpegurl')) {
-      player.src = hlsVideoUrl.value;
-      player.load();
-      return;
-    }
-
-    if (Hls.isSupported()) {
-      hlsPlayer = new Hls();
-      hlsFallbackTimerId = window.setTimeout(() => {
-        destroyHlsPlayer();
-        resetVideoElement(player);
-        attachFallbackSource(player);
-      }, 1500);
-      hlsPlayer.on(Hls.Events.MANIFEST_PARSED, () => {
-        clearHlsFallbackTimer();
-      });
-      hlsPlayer.on(Hls.Events.ERROR, (_event, data) => {
-        if (!data?.fatal) {
-          return;
-        }
-
-        destroyHlsPlayer();
-        resetVideoElement(player);
-        attachFallbackSource(player);
-      });
-      hlsPlayer.loadSource(hlsVideoUrl.value);
-      hlsPlayer.attachMedia(player);
-      return;
-    }
-  }
-
-  attachFallbackSource(player);
-}
-
 onMounted(loadCurrentVideo);
 onUnmounted(() => {
   stopProcessingPolling();
-  clearHlsFallbackTimer();
-  destroyHlsPlayer();
 });
 watch(() => route.params.videoId, loadCurrentVideo);
-watch(
-  () => [video.value?.id, video.value?.status, video.value?.has_hls, isLoading.value],
-  ([, status, , loading]) => {
-    if (!loading && status === 'ready') {
-      attachVideoSource();
-    }
-  },
-);
+watch(() => [video.value?.id, video.value?.status], resetSelectedQuality);
 </script>

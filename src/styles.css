@@ -932,8 +932,26 @@ h2 {
 .video-player {
   display: block;
   width: 100%;
-  max-height: min(68vh, 720px);
   background: #171717;
+  --video-border: 1px solid rgba(19, 24, 27, 0.18);
+  --video-border-radius: 6px;
+  --video-controls-color: #f7f9fb;
+  --video-scrim-bg: rgba(12, 15, 18, 0.42);
+  --video-focus-ring: 0 0 0 3px rgba(222, 51, 91, 0.34);
+  --video-brand: #de335b;
+}
+
+.video-player::part(video) {
+  background: #171717;
+}
+
+.video-player media-outlet {
+  max-height: min(68vh, 720px);
+}
+
+.video-player media-outlet video {
+  display: block;
+  max-height: min(68vh, 720px);
 }
 
 .quality-select {
