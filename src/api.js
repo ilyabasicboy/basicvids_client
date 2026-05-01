@@ -117,7 +117,17 @@ export const api = {
     });
   },
 
-  listVideos({ search = '', offset = 0, limit = 30, authorId = null, categoryId = null, includeSubcategories = true } = {}) {
+  listVideos({
+    search = '',
+    offset = 0,
+    limit = 30,
+    authorId = null,
+    categoryId = null,
+    categoryIds = [],
+    includeSubcategories = true,
+    duration = '',
+    uploaded = '',
+  } = {}) {
     const params = new URLSearchParams();
     const cleanSearch = search.trim();
 
@@ -127,9 +137,18 @@ export const api = {
     if (authorId) {
       params.set('author_id', String(authorId));
     }
-    if (categoryId) {
-      params.set('category_id', String(categoryId));
+    const selectedCategoryIds = categoryIds.length > 0 ? categoryIds : (categoryId ? [categoryId] : []);
+    selectedCategoryIds.forEach((selectedCategoryId) => {
+      params.append('category_id', String(selectedCategoryId));
+    });
+    if (selectedCategoryIds.length > 0) {
       params.set('include_subcategories', String(includeSubcategories));
+    }
+    if (duration) {
+      params.set('duration', duration);
+    }
+    if (uploaded) {
+      params.set('uploaded', uploaded);
     }
     params.set('offset', String(offset));
     params.set('limit', String(limit));

@@ -36,16 +36,44 @@
           </div>
           <button type="submit" class="ghost-button">Search</button>
         </div>
+        <div class="video-filter-row">
+          <fieldset class="video-category-filter">
+            <legend>Category</legend>
+            <div v-if="categoryOptions.length === 0" class="video-category-filter-empty">No categories</div>
+            <label v-for="option in categoryOptions" v-else :key="option.id" class="video-category-option">
+              <input v-model="pendingCategoryIds" type="checkbox" :value="String(option.id)" />
+              <span>{{ option.label }}</span>
+            </label>
+          </fieldset>
+          <label>
+            <span>Duration</span>
+            <select v-model="durationFilter">
+              <option value="">Any duration</option>
+              <option value="under_3">Less than 3 minutes</option>
+              <option value="3_20">3-20 minutes</option>
+              <option value="over_20">More than 20 minutes</option>
+            </select>
+          </label>
+          <label>
+            <span>Upload date</span>
+            <select v-model="uploadedFilter">
+              <option value="">Any date</option>
+              <option value="today">Today</option>
+              <option value="week">This week</option>
+              <option value="month">This month</option>
+              <option value="year">This year</option>
+            </select>
+          </label>
+        </div>
       </form>
 
-      <div v-if="selectedCategory" class="active-filter-banner">
-        <span>Category: {{ selectedCategory.name }}</span>
-        <button type="button" class="ghost-button" @click="clearCategoryFilter">Show all</button>
-      </div>
+      <button v-if="hasActiveFilters" type="button" class="ghost-button clear-filter-button" @click="clearFilters">
+        Clear
+      </button>
 
       <div v-if="isLoadingVideos && displayedVideos.length === 0" class="empty-state">Loading videos...</div>
       <div v-else-if="displayedVideos.length === 0" class="empty-state">
-        {{ searchQuery.trim() ? 'No videos match your search.' : 'No videos uploaded yet.' }}
+        {{ hasActiveFilters ? 'No videos match your search.' : 'No videos uploaded yet.' }}
       </div>
       <div v-else class="video-list-frame" :class="{ loading: isLoadingVideos }">
         <ul class="video-list">
@@ -141,7 +169,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 import { useRoute, useRouter } from 'vue-router';
 import UserAvatar from '../components/UserAvatar.vue';
@@ -164,19 +192,27 @@ const route = useRoute();
 const router = useRouter();
 const pageSize = 30;
 const searchQuery = ref('');
+const pendingCategoryIds = ref(route.query.categoryId ? [String(route.query.categoryId)] : []);
+const appliedCategoryIds = ref([...pendingCategoryIds.value]);
+const durationFilter = ref('');
+const uploadedFilter = ref('');
 const currentPage = ref(1);
 const displayedVideos = ref([...props.videos]);
 const pendingDeleteVideo = ref(null);
-let searchTimerId = null;
 
 const totalPages = computed(() => Math.max(1, Math.ceil(props.videosCount / pageSize)));
 const pageStart = computed(() => (props.videosCount === 0 ? 0 : (currentPage.value - 1) * pageSize + 1));
 const pageEnd = computed(() => Math.min(currentPage.value * pageSize, props.videosCount));
-const selectedCategoryId = computed(() => {
-  const value = Number(route.query.categoryId);
-  return Number.isFinite(value) && value > 0 ? value : null;
-});
-const selectedCategory = computed(() => findCategoryById(selectedCategoryId.value, props.categories));
+const categoryOptions = computed(() => flattenCategories(props.categories));
+const hasActiveFilters = computed(() => Boolean(
+  searchQuery.value.trim()
+  || appliedCategoryIds.value.length > 0
+  || durationFilter.value
+  || uploadedFilter.value,
+));
+const selectedCategories = computed(() => appliedCategoryIds.value
+  .map((categoryId) => findCategoryById(Number(categoryId), props.categories))
+  .filter(Boolean));
 
 watch(
   () => [props.videos, props.isLoadingVideos],
@@ -187,59 +223,51 @@ watch(
   },
 );
 
-watch(searchQuery, () => {
-  clearPendingSearchTimer();
-
-  searchTimerId = window.setTimeout(() => {
-    searchVideos();
-  }, 300);
-});
-
 watch(
-  () => route.query.categoryId,
-  () => {
-    loadVideos(1);
+  () => [route.query.categoryId, route.query.autoSearch],
+  ([categoryId, autoSearch]) => {
+    pendingCategoryIds.value = categoryId ? [String(categoryId)] : [];
+    if (autoSearch === '1') {
+      searchVideos();
+    }
   },
 );
-
-onUnmounted(() => {
-  clearPendingSearchTimer();
-});
 
 onMounted(() => {
   loadVideos(1);
 });
 
-function clearPendingSearchTimer() {
-  if (searchTimerId) {
-    clearTimeout(searchTimerId);
-    searchTimerId = null;
-  }
-}
-
 function searchVideos() {
-  clearPendingSearchTimer();
+  appliedCategoryIds.value = [...pendingCategoryIds.value];
   loadVideos(1);
 }
 
 function clearSearch() {
-  clearPendingSearchTimer();
   searchQuery.value = '';
-  loadVideos(1);
 }
 
 function loadVideos(page = currentPage.value) {
   currentPage.value = Math.min(Math.max(page, 1), totalPages.value);
   emit('load-videos', {
     search: searchQuery.value.trim(),
-    categoryId: selectedCategoryId.value,
+    categoryIds: appliedCategoryIds.value.map((categoryId) => Number(categoryId)),
+    duration: durationFilter.value,
+    uploaded: uploadedFilter.value,
     offset: (currentPage.value - 1) * pageSize,
     limit: pageSize,
   });
 }
 
-async function clearCategoryFilter() {
-  await router.push('/videos');
+async function clearFilters() {
+  searchQuery.value = '';
+  pendingCategoryIds.value = [];
+  appliedCategoryIds.value = [];
+  durationFilter.value = '';
+  uploadedFilter.value = '';
+  if (route.query.categoryId) {
+    await router.push('/videos');
+  }
+  loadVideos(1);
 }
 
 function goToPage(page) {
@@ -347,6 +375,16 @@ function videoTileStyle(video) {
   return {
     backgroundImage: `url("${props.videoThumbnailUrl(video.id)}")`,
   };
+}
+
+function flattenCategories(categories, level = 0) {
+  return categories.flatMap((category) => [
+    {
+      id: category.id,
+      label: `${'— '.repeat(level)}${category.name}`,
+    },
+    ...flattenCategories(category.children || [], level + 1),
+  ]);
 }
 
 function findCategoryById(categoryId, categories) {

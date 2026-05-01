@@ -905,7 +905,7 @@ async function handleCategorySelect(category) {
   closeUserMenu();
   await router.push({
     path: '/videos',
-    query: { categoryId: String(category.id) },
+    query: { categoryId: String(category.id), autoSearch: '1' },
   });
 }
 
