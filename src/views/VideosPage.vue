@@ -125,6 +125,11 @@
                     <UserAvatar :user-id="video.author_id" :label="authorLabel(video)" :avatar-url="avatarUrl" />
                     <span>{{ authorLabel(video) }}</span>
                   </small>
+                  <small class="video-engagement-line">
+                    <span>{{ formatCount(video.views_count) }} views</span>
+                    <span aria-label="Likes">👍 {{ formatCount(video.likes_count) }}</span>
+                    <span aria-label="Dislikes">👎 {{ formatCount(video.dislikes_count) }}</span>
+                  </small>
                   <small class="video-card-age">{{ formatRelativeTime(video.created_at) }}</small>
                 </div>
               </RouterLink>
@@ -331,6 +336,10 @@ function authorLabel(video) {
 
   const fullName = [video.author_first_name, video.author_last_name].filter(Boolean).join(' ');
   return fullName || video.author_username || 'Unknown author';
+}
+
+function formatCount(value) {
+  return Number(value || 0).toLocaleString();
 }
 
 function statusLabel(video) {

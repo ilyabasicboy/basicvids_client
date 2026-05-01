@@ -59,6 +59,30 @@
         </span>
       </div>
 
+      <div v-if="video" class="video-engagement-panel">
+        <div class="video-engagement-actions">
+          <button
+            type="button"
+            class="engagement-button"
+            :class="{ active: currentReaction === 'like' }"
+            :disabled="!isAuthenticated || isUpdatingReaction"
+            @click="applyReaction('like')"
+          >
+            <span aria-hidden="true">👍</span><span>{{ formatCount(video.likes_count) }}</span>
+          </button>
+          <button
+            type="button"
+            class="engagement-button"
+            :class="{ active: currentReaction === 'dislike' }"
+            :disabled="!isAuthenticated || isUpdatingReaction"
+            @click="applyReaction('dislike')"
+          >
+            <span aria-hidden="true">👎</span><span>{{ formatCount(video.dislikes_count) }}</span>
+          </button>
+        </div>
+        <small class="video-engagement-views">{{ formatCount(video.views_count) }} views</small>
+      </div>
+
       <form v-if="video" class="detail-form" @submit.prevent="submit">
         <dl class="detail-list">
           <div>
@@ -192,6 +216,9 @@ const props = defineProps({
   isChangingVideo: { type: Boolean, default: false },
   loadComments: { type: Function, required: true },
   loadVideo: { type: Function, required: true },
+  loadVideoEngagement: { type: Function, required: true },
+  registerVideoView: { type: Function, required: true },
+  setVideoReaction: { type: Function, required: true },
   videoThumbnailUrl: { type: Function, required: true },
   videoHlsUrl: { type: Function, required: true },
   videoUrl: { type: Function, required: true },
@@ -206,14 +233,17 @@ const comments = ref([]);
 const isLoading = ref(false);
 const isLoadingComments = ref(false);
 const isCreatingComment = ref(false);
+const isUpdatingReaction = ref(false);
 const errorMessage = ref('');
 const isEditing = ref(false);
 const commentText = ref('');
 const pendingDeleteVideo = ref(null);
 let processingPollTimerId = null;
+let lastRegisteredViewVideoId = null;
 const selectedQuality = ref('');
 const videoTitle = computed(() => video.value?.title || video.value?.original_filename || 'Video');
 const canEdit = computed(() => Boolean(video.value && props.currentUser?.id === video.value.author_id));
+const currentReaction = computed(() => video.value?.user_reaction || null);
 const sortedQualities = computed(() => [...(video.value?.qualities || [])].sort((left, right) => right.height - left.height));
 const showFallbackQualitySelect = computed(() => !video.value?.has_hls && sortedQualities.value.length > 1);
 const posterUrl = computed(() => (video.value ? props.videoThumbnailUrl(video.value.id) : ''));
@@ -263,6 +293,7 @@ async function loadCurrentVideo(loadComments = true) {
     if (loadComments) {
       await loadCurrentComments();
     }
+    maybeRegisterView();
   } catch (error) {
     video.value = null;
     errorMessage.value = error.message || 'Video not found.';
@@ -350,6 +381,42 @@ async function submitComment() {
   }
 }
 
+async function refreshEngagement() {
+  if (!video.value) {
+    return;
+  }
+
+  const summary = await props.loadVideoEngagement(video.value.id);
+  video.value = {
+    ...video.value,
+    likes_count: summary.likes_count,
+    dislikes_count: summary.dislikes_count,
+    views_count: summary.views_count,
+    user_reaction: summary.user_reaction,
+  };
+}
+
+async function applyReaction(targetReaction) {
+  if (!video.value || !props.isAuthenticated || isUpdatingReaction.value) {
+    return;
+  }
+
+  isUpdatingReaction.value = true;
+  try {
+    const nextReaction = currentReaction.value === targetReaction ? 'none' : targetReaction;
+    const summary = await props.setVideoReaction(video.value.id, nextReaction);
+    video.value = {
+      ...video.value,
+      likes_count: summary.likes_count,
+      dislikes_count: summary.dislikes_count,
+      views_count: summary.views_count,
+      user_reaction: summary.user_reaction,
+    };
+  } finally {
+    isUpdatingReaction.value = false;
+  }
+}
+
 async function removeComment(comment) {
   await props.deleteComment(comment.id);
   comments.value = comments.value.filter((item) => item.id !== comment.id);
@@ -384,6 +451,30 @@ function formatDate(value) {
   return value ? new Date(value).toLocaleString() : '';
 }
 
+function formatCount(value) {
+  return Number(value || 0).toLocaleString();
+}
+
+async function maybeRegisterView() {
+  if (!video.value || video.value.status !== 'ready' || lastRegisteredViewVideoId === video.value.id) {
+    return;
+  }
+
+  lastRegisteredViewVideoId = video.value.id;
+  const summary = await props.registerVideoView(video.value.id);
+  if (!summary) {
+    return;
+  }
+
+  video.value = {
+    ...video.value,
+    likes_count: summary.likes_count,
+    dislikes_count: summary.dislikes_count,
+    views_count: summary.views_count,
+    user_reaction: summary.user_reaction,
+  };
+}
+
 function flattenCategories(categories, level = 0) {
   return categories.flatMap((category) => [
     {
@@ -399,5 +490,13 @@ onUnmounted(() => {
   stopProcessingPolling();
 });
 watch(() => route.params.videoId, loadCurrentVideo);
-watch(() => [video.value?.id, video.value?.status], resetSelectedQuality);
+watch(() => [video.value?.id, video.value?.status], ([videoId, status]) => {
+  if (videoId && status === 'ready') {
+    maybeRegisterView();
+  }
+  if (status !== 'ready') {
+    lastRegisteredViewVideoId = null;
+  }
+  resetSelectedQuality();
+});
 </script>

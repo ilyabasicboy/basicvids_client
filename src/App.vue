@@ -177,6 +177,9 @@
             :load-comments="loadComments"
             :create-comment="createComment"
             :delete-comment="deleteComment"
+            :load-video-engagement="loadVideoEngagement"
+            :set-video-reaction="setVideoReaction"
+            :register-video-view="registerVideoView"
             :upload-file="uploadFile"
             :video-thumbnail-url="videoThumbnailUrl"
             :video-hls-url="videoHlsUrl"
@@ -365,6 +368,30 @@ function isNavActive(item) {
   return item.activePaths.some((path) => route.path === path || route.path.startsWith(`${path}/`));
 }
 
+function mergeVideoEngagement(video, engagement) {
+  return {
+    ...video,
+    likes_count: engagement?.likes_count ?? 0,
+    dislikes_count: engagement?.dislikes_count ?? 0,
+    views_count: engagement?.views_count ?? 0,
+    user_reaction: engagement?.user_reaction ?? null,
+  };
+}
+
+async function attachEngagementToVideos(videoItems) {
+  if (!Array.isArray(videoItems) || videoItems.length === 0) {
+    return [];
+  }
+
+  try {
+    const response = await api.getVideoEngagementSummaries(videoItems.map((video) => video.id));
+    const summaryByVideoId = Object.fromEntries((response.items || []).map((item) => [item.video_id, item]));
+    return videoItems.map((video) => mergeVideoEngagement(video, summaryByVideoId[video.id]));
+  } catch {
+    return videoItems.map((video) => mergeVideoEngagement(video));
+  }
+}
+
 function toggleSidebar() {
   isSidebarCollapsed.value = !isSidebarCollapsed.value;
 }
@@ -401,10 +428,11 @@ async function loadVideos(options = {}) {
   isLoadingVideos.value = true;
   try {
     const response = await api.listVideos(normalizedOptions);
+    const hydratedVideos = await attachEngagementToVideos(response.videos || []);
     if (requestId !== videosRequestId) {
       return;
     }
-    videos.value = response.videos || [];
+    videos.value = hydratedVideos;
     videosCount.value = response.count || 0;
   } catch (error) {
     if (requestId === videosRequestId) {
@@ -463,12 +491,47 @@ async function loadVideo(videoId) {
     return cachedVideo;
   }
 
-  const video = await api.getVideo(videoId);
+  const [video, engagement] = await Promise.all([
+    api.getVideo(videoId),
+    api.getVideoEngagement(videoId).catch(() => null),
+  ]);
+  const hydratedVideo = mergeVideoEngagement(video, engagement);
   const existingIndex = videos.value.findIndex((item) => item.id === video.id);
   if (existingIndex >= 0) {
-    videos.value = videos.value.map((item) => (item.id === video.id ? video : item));
+    videos.value = videos.value.map((item) => (item.id === hydratedVideo.id ? hydratedVideo : item));
   }
-  return video;
+  return hydratedVideo;
+}
+
+async function loadVideoEngagement(videoId) {
+  return api.getVideoEngagement(videoId);
+}
+
+async function setVideoReaction(videoId, reaction) {
+  try {
+    const summary = await api.setVideoReaction(videoId, reaction);
+    const existingIndex = videos.value.findIndex((item) => item.id === videoId);
+    if (existingIndex >= 0) {
+      videos.value = videos.value.map((item) => (item.id === videoId ? mergeVideoEngagement(item, summary) : item));
+    }
+    return summary;
+  } catch (error) {
+    setMessage(error.message, 'error');
+    throw error;
+  }
+}
+
+async function registerVideoView(videoId, watchedSeconds = null) {
+  try {
+    const summary = await api.registerVideoView(videoId, watchedSeconds);
+    const existingIndex = videos.value.findIndex((item) => item.id === videoId);
+    if (existingIndex >= 0) {
+      videos.value = videos.value.map((item) => (item.id === videoId ? mergeVideoEngagement(item, summary) : item));
+    }
+    return summary;
+  } catch (error) {
+    return null;
+  }
 }
 
 async function loadComments(videoId) {

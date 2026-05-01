@@ -253,6 +253,31 @@ export const api = {
     });
   },
 
+  getVideoEngagement(videoId) {
+    return request(`/api/v1/engagement/videos/${videoId}`);
+  },
+
+  getVideoEngagementSummaries(videoIds) {
+    return request('/api/v1/engagement/videos/summaries', {
+      method: 'POST',
+      body: JSON.stringify({ video_ids: videoIds }),
+    });
+  },
+
+  setVideoReaction(videoId, reaction) {
+    return request(`/api/v1/engagement/videos/${videoId}/reaction`, {
+      method: 'PUT',
+      body: JSON.stringify({ reaction }),
+    });
+  },
+
+  registerVideoView(videoId, watchedSeconds = null) {
+    return request(`/api/v1/engagement/videos/${videoId}/view`, {
+      method: 'POST',
+      body: JSON.stringify({ watched_seconds: watchedSeconds }),
+    });
+  },
+
   videoUrl(videoId, quality = null) {
     const params = new URLSearchParams();
     if (quality) {
