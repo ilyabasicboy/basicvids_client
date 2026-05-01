@@ -28,6 +28,43 @@
           </component>
         </nav>
 
+        <section v-if="!isSidebarCollapsed" class="sidebar-categories">
+          <button
+            type="button"
+            class="sidebar-section-toggle"
+            :aria-expanded="String(sidebarCategoriesOpen)"
+            @click="toggleSidebarCategories"
+          >
+            <span>Categories</span>
+            <strong>{{ sidebarCategoriesOpen ? '−' : '+' }}</strong>
+          </button>
+
+          <div v-if="sidebarCategoriesOpen" class="sidebar-section-body">
+            <div v-if="categories.length === 0" class="sidebar-empty">
+              No categories yet.
+            </div>
+            <button
+              v-if="activeCategoryId"
+              type="button"
+              class="sidebar-clear-filter"
+              @click="clearCategoryFilter"
+            >
+              Clear filter
+            </button>
+            <ul v-if="categories.length > 0" class="category-tree">
+              <CategoryTreeItem
+                v-for="category in categories"
+                :key="category.id"
+                :category="category"
+                :expanded-ids="expandedCategoryIds"
+                :active-category-id="activeCategoryId"
+                @toggle="toggleCategoryNode"
+                @select="handleCategorySelect"
+              />
+            </ul>
+          </div>
+        </section>
+
         <button
           type="button"
           class="nav-item sidebar-toggle"
@@ -60,6 +97,9 @@
                 </RouterLink>
                 <RouterLink class="user-menu-link" to="/user-videos" @click="closeUserMenu">
                   Videos
+                </RouterLink>
+                <RouterLink v-if="currentUser?.is_admin" class="user-menu-link" to="/categories" @click="closeUserMenu">
+                  Manage categories
                 </RouterLink>
                 <button type="button" class="user-menu-link" @click="handleLogout">
                   Log out
@@ -130,6 +170,11 @@
             :video-url="videoUrl"
             :videos="videos"
             :videos-count="videosCount"
+            :categories="categories"
+            :load-categories="loadCategories"
+            :create-category="createCategory"
+            :delete-category="deleteCategory"
+            :is-creating-category="isCreatingCategory"
             @change-user="changeUser"
             @change-password="changePassword"
             @confirm-email="confirmEmail"
@@ -153,9 +198,10 @@
 </template>
 
 <script setup>
-import { computed, onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router';
 import { api } from './api';
+import CategoryTreeItem from './components/CategoryTreeItem.vue';
 import UserAvatar from './components/UserAvatar.vue';
 
 const route = useRoute();
@@ -182,22 +228,41 @@ const pendingConfirmCredentials = ref(null);
 const message = ref('');
 const messageType = ref('info');
 const isSidebarCollapsed = ref(false);
+const sidebarCategoriesOpen = ref(true);
 const userMenuOpen = ref(false);
 const userMenuRef = ref(null);
+const categories = ref([]);
+const isCreatingCategory = ref(false);
+const expandedCategoryIds = ref(new Set());
 let messageTimerId = null;
 let videosRequestId = 0;
 
-const navItems = [
-  { id: 'home', label: 'Home', shortLabel: 'H', status: 'Videos', to: '/videos', activePaths: ['/videos'] },
-  { id: 'categories', label: 'Categories', shortLabel: 'C', status: 'Soon', to: null, activePaths: [] },
-];
-
 const isAuthenticated = computed(() => Boolean(authToken.value));
+const navItems = computed(() => {
+  return [
+    { id: 'home', label: 'Home', shortLabel: 'H', status: 'Videos', to: '/videos', activePaths: ['/videos'] },
+  ];
+});
 const userLabel = computed(() => currentUser.value?.username || currentUser.value?.email || 'Guest');
 const currentUserText = computed(() => (currentUser.value ? JSON.stringify(currentUser.value, null, 2) : 'No signed-in user loaded.'));
+const activeCategoryId = computed(() => {
+  if (route.path !== '/videos') {
+    return null;
+  }
+
+  const value = Number(route.query.categoryId);
+  return Number.isFinite(value) && value > 0 ? value : null;
+});
 const breadcrumbs = computed(() => {
   if (route.path === '/' || route.path === '/videos') {
     return [{ label: 'Home', to: '/videos' }];
+  }
+
+  if (route.path === '/categories') {
+    return [
+      { label: 'Home', to: '/videos' },
+      { label: 'Categories', to: '/categories' },
+    ];
   }
 
   if (route.path === '/videos/upload') {
@@ -280,6 +345,10 @@ function toggleSidebar() {
   isSidebarCollapsed.value = !isSidebarCollapsed.value;
 }
 
+function toggleSidebarCategories() {
+  sidebarCategoriesOpen.value = !sidebarCategoriesOpen.value;
+}
+
 function onNavItemClick(item) {
   if (!item.to) {
     return;
@@ -321,6 +390,46 @@ async function loadVideos(options = {}) {
     if (requestId === videosRequestId) {
       isLoadingVideos.value = false;
     }
+  }
+}
+
+async function loadCategories() {
+  try {
+    categories.value = await api.listCategories();
+    if (expandedCategoryIds.value.size === 0) {
+      expandedCategoryIds.value = new Set(categories.value.map((category) => category.id));
+    }
+    ensureActiveCategoryPathExpanded();
+  } catch (error) {
+    setMessage(error.message, 'error');
+  }
+}
+
+async function createCategory(payload) {
+  isCreatingCategory.value = true;
+  try {
+    await api.createCategory(payload);
+    await loadCategories();
+    setMessage('Category created.', 'success');
+  } catch (error) {
+    setMessage(error.message, 'error');
+    throw error;
+  } finally {
+    isCreatingCategory.value = false;
+  }
+}
+
+async function deleteCategory(category) {
+  try {
+    await api.deleteCategory(category.id);
+    await loadCategories();
+    if (activeCategoryId.value === category.id) {
+      await clearCategoryFilter();
+    }
+    setMessage('Category deleted.', 'success');
+  } catch (error) {
+    setMessage(error.message, 'error');
+    throw error;
   }
 }
 
@@ -603,6 +712,7 @@ async function ensureUploadSession(file, upload) {
   const createdSession = await api.createVideoUploadSession({
     title: upload?.title?.trim() || file.name,
     description: upload?.description?.trim() || null,
+    category_id: upload?.categoryId || null,
     original_filename: file.name,
     content_type: file.type || 'video/mp4',
     total_size_bytes: file.size,
@@ -751,12 +861,69 @@ function avatarUrl(userId) {
   return `${api.userAvatarUrl(userId)}?v=${avatarVersion.value}`;
 }
 
+function findCategoryPath(categoryId, nodes = categories.value, trail = []) {
+  for (const node of nodes) {
+    const nextTrail = [...trail, node.id];
+    if (node.id === categoryId) {
+      return nextTrail;
+    }
+    const childPath = findCategoryPath(categoryId, node.children || [], nextTrail);
+    if (childPath.length > 0) {
+      return childPath;
+    }
+  }
+
+  return [];
+}
+
+function ensureActiveCategoryPathExpanded() {
+  if (!activeCategoryId.value) {
+    return;
+  }
+
+  const path = findCategoryPath(activeCategoryId.value);
+  if (path.length === 0) {
+    return;
+  }
+
+  const nextExpanded = new Set(expandedCategoryIds.value);
+  path.forEach((id) => nextExpanded.add(id));
+  expandedCategoryIds.value = nextExpanded;
+}
+
+function toggleCategoryNode(categoryId) {
+  const nextExpanded = new Set(expandedCategoryIds.value);
+  if (nextExpanded.has(categoryId)) {
+    nextExpanded.delete(categoryId);
+  } else {
+    nextExpanded.add(categoryId);
+  }
+  expandedCategoryIds.value = nextExpanded;
+}
+
+async function handleCategorySelect(category) {
+  closeUserMenu();
+  await router.push({
+    path: '/videos',
+    query: { categoryId: String(category.id) },
+  });
+}
+
+async function clearCategoryFilter() {
+  await router.push('/videos');
+}
+
+watch(activeCategoryId, () => {
+  ensureActiveCategoryPathExpanded();
+});
+
 onMounted(async () => {
   document.addEventListener('click', handleDocumentClick);
   if (window.innerWidth <= 980) {
     isSidebarCollapsed.value = true;
   }
 
+  await loadCategories();
   await loadVideos();
 
   if (localStorage.getItem('basicvids_access_token')) {

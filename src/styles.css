@@ -104,6 +104,124 @@ button {
   gap: 8px;
 }
 
+.sidebar-categories {
+  display: grid;
+  gap: 10px;
+}
+
+.sidebar-section-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #49635d;
+  border-radius: 14px;
+  padding: 9px 12px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.04);
+  font-weight: 800;
+}
+
+.sidebar-section-toggle:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-section-body {
+  display: grid;
+  gap: 10px;
+}
+
+.sidebar-empty {
+  border: 1px dashed rgba(217, 228, 220, 0.3);
+  border-radius: 12px;
+  padding: 12px;
+  color: #d9e4dc;
+  font-size: 0.88rem;
+}
+
+.sidebar-clear-filter {
+  justify-self: start;
+  border: 0;
+  padding: 0;
+  color: #f6cf7a;
+  background: transparent;
+  font-weight: 800;
+}
+
+.category-tree,
+.category-tree-children {
+  display: grid;
+  gap: 4px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.category-tree-children {
+  margin-top: 6px;
+  margin-left: 16px;
+  padding-left: 8px;
+  border-left: 1px solid rgba(217, 228, 220, 0.18);
+}
+
+.category-tree-row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 6px;
+  align-items: center;
+}
+
+.category-tree-toggle,
+.category-tree-link {
+  border: 0;
+  background: transparent;
+}
+
+.category-tree-toggle {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  color: #d9e4dc;
+  padding: 0;
+}
+
+.category-tree-chevron {
+  display: inline-block;
+  transition: transform 160ms ease;
+}
+
+.category-tree-chevron.expanded {
+  transform: rotate(90deg);
+}
+
+.category-tree-spacer {
+  width: 20px;
+  height: 20px;
+}
+
+.category-tree-link {
+  display: flex;
+  align-items: center;
+  min-height: 34px;
+  width: 100%;
+  border-radius: 10px;
+  padding: 7px 10px;
+  color: #d9e4dc;
+  text-align: left;
+}
+
+.category-tree-link:hover,
+.category-tree-link.active {
+  color: #16292d;
+  background: #f6f3e8;
+}
+
+.category-tree-label {
+  overflow-wrap: anywhere;
+}
+
 .nav-item {
   display: flex;
   justify-content: space-between;
@@ -566,6 +684,19 @@ h2 {
   gap: 8px;
 }
 
+.active-filter-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #d9caa0;
+  border-radius: 10px;
+  padding: 10px 12px;
+  background: #fbf5e6;
+  color: #5f5231;
+  font-weight: 700;
+}
+
 .video-search-form label {
   font-weight: 800;
 }
@@ -929,6 +1060,39 @@ h2 {
   gap: 12px;
 }
 
+.video-meta-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.video-category-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  border: 1px solid #d7c17d;
+  border-radius: 999px;
+  padding: 0 12px;
+  color: #5f5231;
+  background: #fbf5e6;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+a.video-category-pill:hover,
+a.video-category-pill:focus-visible {
+  border-color: #b99736;
+  color: #243b36;
+  background: #f6e7b7;
+}
+
+.video-category-pill.muted {
+  border-color: #d7dee2;
+  color: #66625c;
+  background: #f4f7f5;
+}
+
 .video-player {
   display: block;
   width: 100%;
@@ -1155,6 +1319,7 @@ h2 {
 }
 
 .detail-list input,
+.detail-list select,
 .detail-list textarea {
   width: 100%;
   min-height: 42px;
@@ -1255,6 +1420,7 @@ h2 {
 }
 
 .auth-form input,
+.auth-form select,
 .auth-form textarea {
   width: 100%;
   min-height: 44px;
@@ -1267,6 +1433,57 @@ h2 {
 
 .auth-form textarea {
   resize: vertical;
+}
+
+.categories-admin-layout {
+  display: grid;
+  gap: 18px;
+}
+
+.categories-admin-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 1.1fr) minmax(320px, 0.9fr);
+  gap: 18px;
+}
+
+.categories-tree-panel,
+.categories-form-panel {
+  align-self: start;
+}
+
+.category-admin-tree,
+.category-admin-children {
+  display: grid;
+  gap: 10px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.category-admin-children {
+  margin-top: 10px;
+  margin-left: 18px;
+  padding-left: 12px;
+  border-left: 1px solid #d7dee2;
+}
+
+.category-admin-item {
+  display: grid;
+  gap: 4px;
+  border: 1px solid #e2e7e9;
+  border-radius: 10px;
+  padding: 12px;
+  background: #f8fbfa;
+}
+
+.category-admin-copy {
+  display: grid;
+  gap: 6px;
+}
+
+.category-admin-item small,
+.form-hint {
+  color: #66625c;
 }
 
 .profile-panel pre {
@@ -1316,7 +1533,8 @@ h2 {
   .workspace,
   .main-grid,
   .account-links,
-  .field-row {
+  .field-row,
+  .categories-admin-grid {
     grid-template-columns: 1fr;
   }
 

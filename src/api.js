@@ -18,7 +18,9 @@ async function request(path, options = {}) {
   });
 
   const contentType = response.headers.get('content-type') || '';
-  const data = contentType.includes('application/json') ? await response.json() : await response.text();
+  const hasNoBody = response.status === 204 || response.status === 205;
+  const bodyText = hasNoBody ? '' : await response.text();
+  const data = contentType.includes('application/json') && bodyText ? JSON.parse(bodyText) : bodyText;
 
   if (!response.ok) {
     let message = 'Request failed';
@@ -115,7 +117,7 @@ export const api = {
     });
   },
 
-  listVideos({ search = '', offset = 0, limit = 30, authorId = null } = {}) {
+  listVideos({ search = '', offset = 0, limit = 30, authorId = null, categoryId = null, includeSubcategories = true } = {}) {
     const params = new URLSearchParams();
     const cleanSearch = search.trim();
 
@@ -124,6 +126,10 @@ export const api = {
     }
     if (authorId) {
       params.set('author_id', String(authorId));
+    }
+    if (categoryId) {
+      params.set('category_id', String(categoryId));
+      params.set('include_subcategories', String(includeSubcategories));
     }
     params.set('offset', String(offset));
     params.set('limit', String(limit));
@@ -134,6 +140,23 @@ export const api = {
 
   getVideo(videoId) {
     return request(`/api/v1/videos/${videoId}`);
+  },
+
+  listCategories() {
+    return request('/api/v1/categories/');
+  },
+
+  createCategory(payload) {
+    return request('/api/v1/categories/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deleteCategory(categoryId) {
+    return request(`/api/v1/categories/${categoryId}`, {
+      method: 'DELETE',
+    });
   },
 
   createVideoUploadSession(payload) {

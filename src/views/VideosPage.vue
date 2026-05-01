@@ -38,6 +38,11 @@
         </div>
       </form>
 
+      <div v-if="selectedCategory" class="active-filter-banner">
+        <span>Category: {{ selectedCategory.name }}</span>
+        <button type="button" class="ghost-button" @click="clearCategoryFilter">Show all</button>
+      </div>
+
       <div v-if="isLoadingVideos && displayedVideos.length === 0" class="empty-state">Loading videos...</div>
       <div v-else-if="displayedVideos.length === 0" class="empty-state">
         {{ searchQuery.trim() ? 'No videos match your search.' : 'No videos uploaded yet.' }}
@@ -138,10 +143,12 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import UserAvatar from '../components/UserAvatar.vue';
 
 const props = defineProps({
   currentUser: { type: Object, default: null },
+  categories: { type: Array, default: () => [] },
   videos: { type: Array, default: () => [] },
   videosCount: { type: Number, default: 0 },
   isAuthenticated: { type: Boolean, default: false },
@@ -153,6 +160,8 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['delete-video', 'load-videos']);
+const route = useRoute();
+const router = useRouter();
 const pageSize = 30;
 const searchQuery = ref('');
 const currentPage = ref(1);
@@ -163,6 +172,11 @@ let searchTimerId = null;
 const totalPages = computed(() => Math.max(1, Math.ceil(props.videosCount / pageSize)));
 const pageStart = computed(() => (props.videosCount === 0 ? 0 : (currentPage.value - 1) * pageSize + 1));
 const pageEnd = computed(() => Math.min(currentPage.value * pageSize, props.videosCount));
+const selectedCategoryId = computed(() => {
+  const value = Number(route.query.categoryId);
+  return Number.isFinite(value) && value > 0 ? value : null;
+});
+const selectedCategory = computed(() => findCategoryById(selectedCategoryId.value, props.categories));
 
 watch(
   () => [props.videos, props.isLoadingVideos],
@@ -180,6 +194,13 @@ watch(searchQuery, () => {
     searchVideos();
   }, 300);
 });
+
+watch(
+  () => route.query.categoryId,
+  () => {
+    loadVideos(1);
+  },
+);
 
 onUnmounted(() => {
   clearPendingSearchTimer();
@@ -211,9 +232,14 @@ function loadVideos(page = currentPage.value) {
   currentPage.value = Math.min(Math.max(page, 1), totalPages.value);
   emit('load-videos', {
     search: searchQuery.value.trim(),
+    categoryId: selectedCategoryId.value,
     offset: (currentPage.value - 1) * pageSize,
     limit: pageSize,
   });
+}
+
+async function clearCategoryFilter() {
+  await router.push('/videos');
 }
 
 function goToPage(page) {
@@ -321,5 +347,23 @@ function videoTileStyle(video) {
   return {
     backgroundImage: `url("${props.videoThumbnailUrl(video.id)}")`,
   };
+}
+
+function findCategoryById(categoryId, categories) {
+  if (!categoryId) {
+    return null;
+  }
+
+  for (const category of categories) {
+    if (category.id === categoryId) {
+      return category;
+    }
+    const childMatch = findCategoryById(categoryId, category.children || []);
+    if (childMatch) {
+      return childMatch;
+    }
+  }
+
+  return null;
 }
 </script>

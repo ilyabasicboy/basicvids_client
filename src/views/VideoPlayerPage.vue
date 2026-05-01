@@ -46,6 +46,19 @@
       </div>
       <div v-else class="empty-state">Video not found.</div>
 
+      <div v-if="video" class="video-meta-strip">
+        <RouterLink
+          v-if="video.category"
+          class="video-category-pill"
+          :to="{ path: '/videos', query: { categoryId: String(video.category.id) } }"
+        >
+          {{ video.category.name }}
+        </RouterLink>
+        <span v-else class="video-category-pill muted">
+          No category
+        </span>
+      </div>
+
       <form v-if="video" class="detail-form" @submit.prevent="submit">
         <dl class="detail-list">
           <div>
@@ -60,6 +73,18 @@
             <dd v-if="!isEditing">{{ video.description || 'No description.' }}</dd>
             <dd v-else>
               <textarea v-model.trim="form.description" rows="5"></textarea>
+            </dd>
+          </div>
+          <div>
+            <dt>Category</dt>
+            <dd v-if="!isEditing">{{ video.category?.name || 'No category.' }}</dd>
+            <dd v-else>
+              <select v-model="form.categoryId">
+                <option value="">No category</option>
+                <option v-for="option in categoryOptions" :key="option.id" :value="String(option.id)">
+                  {{ option.label }}
+                </option>
+              </select>
             </dd>
           </div>
           <div>
@@ -158,6 +183,7 @@ import { RouterLink, useRoute } from 'vue-router';
 import UserAvatar from '../components/UserAvatar.vue';
 
 const props = defineProps({
+  categories: { type: Array, default: () => [] },
   currentUser: { type: Object, default: null },
   changeVideo: { type: Function, required: true },
   createComment: { type: Function, required: true },
@@ -203,6 +229,7 @@ const activePlayerSource = computed(() => {
   return props.videoUrl(video.value.id, selectedQuality.value || null);
 });
 const playerKey = computed(() => `${video.value?.id || 'video'}:${activePlayerSource.value}`);
+const categoryOptions = computed(() => flattenCategories(props.categories));
 const authorLabel = computed(() => {
   if (!video.value) {
     return 'Unknown author';
@@ -220,6 +247,7 @@ const authorLabel = computed(() => {
 const form = reactive({
   title: '',
   description: '',
+  categoryId: '',
 });
 
 async function loadCurrentVideo(loadComments = true) {
@@ -279,6 +307,7 @@ async function loadCurrentComments() {
 function resetForm() {
   form.title = video.value?.title || '';
   form.description = video.value?.description || '';
+  form.categoryId = video.value?.category_id ? String(video.value.category_id) : '';
 }
 
 function resetSelectedQuality() {
@@ -299,6 +328,7 @@ async function submit() {
   const changedVideo = await props.changeVideo(video.value.id, {
     title: form.title,
     description: form.description,
+    category_id: form.categoryId ? Number(form.categoryId) : null,
   });
   video.value = changedVideo;
   resetForm();
@@ -352,6 +382,16 @@ function commentAuthorLabel(comment) {
 
 function formatDate(value) {
   return value ? new Date(value).toLocaleString() : '';
+}
+
+function flattenCategories(categories, level = 0) {
+  return categories.flatMap((category) => [
+    {
+      id: category.id,
+      label: `${'— '.repeat(level)}${category.name}`,
+    },
+    ...flattenCategories(category.children || [], level + 1),
+  ]);
 }
 
 onMounted(loadCurrentVideo);

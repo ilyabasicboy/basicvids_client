@@ -15,6 +15,15 @@
           <span>Description</span>
           <textarea v-model.trim="form.description" rows="5"></textarea>
         </label>
+        <label>
+          <span>Category</span>
+          <select v-model="form.categoryId">
+            <option value="">No category</option>
+            <option v-for="option in categoryOptions" :key="option.id" :value="String(option.id)">
+              {{ option.label }}
+            </option>
+          </select>
+        </label>
 
         <label
           class="dropzone"
@@ -63,10 +72,11 @@
 </template>
 
 <script setup>
-import { reactive } from 'vue';
+import { computed, reactive } from 'vue';
 import { RouterLink } from 'vue-router';
 
-defineProps({
+const props = defineProps({
+  categories: { type: Array, default: () => [] },
   isAuthenticated: { type: Boolean, default: false },
   isUploading: { type: Boolean, default: false },
   formatBytes: { type: Function, required: true },
@@ -76,10 +86,12 @@ defineProps({
 });
 
 const emit = defineEmits(['upload-video']);
+const categoryOptions = computed(() => flattenCategories(props.categories));
 
 const form = reactive({
   title: '',
   description: '',
+  categoryId: '',
   file: null,
   thumbnail: null,
 });
@@ -107,7 +119,18 @@ function submit() {
     file: form.file,
     title: form.title,
     description: form.description,
+    categoryId: form.categoryId ? Number(form.categoryId) : null,
     thumbnail: form.thumbnail,
   });
+}
+
+function flattenCategories(categories, level = 0) {
+  return categories.flatMap((category) => [
+    {
+      id: category.id,
+      label: `${'— '.repeat(level)}${category.name}`,
+    },
+    ...flattenCategories(category.children || [], level + 1),
+  ]);
 }
 </script>
