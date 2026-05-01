@@ -40,28 +40,41 @@
           </button>
 
           <div v-if="sidebarCategoriesOpen" class="sidebar-section-body">
-            <div v-if="categories.length === 0" class="sidebar-empty">
-              No categories yet.
+            <input
+              v-if="categories.length > 0"
+              v-model.trim="sidebarCategorySearch"
+              type="search"
+              class="sidebar-category-search"
+              placeholder="Search categories"
+              autocomplete="off"
+            />
+            <div class="sidebar-category-scroll">
+              <div v-if="categories.length === 0" class="sidebar-empty">
+                No categories yet.
+              </div>
+              <button
+                v-if="activeCategoryId"
+                type="button"
+                class="sidebar-clear-filter"
+                @click="clearCategoryFilter"
+              >
+                Clear filter
+              </button>
+              <ul v-if="visibleSidebarCategories.length > 0" class="category-tree">
+                <CategoryTreeItem
+                  v-for="category in visibleSidebarCategories"
+                  :key="category.id"
+                  :category="category"
+                  :expanded-ids="visibleExpandedCategoryIds"
+                  :active-category-id="activeCategoryId"
+                  @toggle="toggleCategoryNode"
+                  @select="handleCategorySelect"
+                />
+              </ul>
+              <div v-else-if="categories.length > 0" class="sidebar-empty">
+                No matching categories.
+              </div>
             </div>
-            <button
-              v-if="activeCategoryId"
-              type="button"
-              class="sidebar-clear-filter"
-              @click="clearCategoryFilter"
-            >
-              Clear filter
-            </button>
-            <ul v-if="categories.length > 0" class="category-tree">
-              <CategoryTreeItem
-                v-for="category in categories"
-                :key="category.id"
-                :category="category"
-                :expanded-ids="expandedCategoryIds"
-                :active-category-id="activeCategoryId"
-                @toggle="toggleCategoryNode"
-                @select="handleCategorySelect"
-              />
-            </ul>
           </div>
         </section>
 
@@ -234,6 +247,7 @@ const userMenuRef = ref(null);
 const categories = ref([]);
 const isCreatingCategory = ref(false);
 const expandedCategoryIds = ref(new Set());
+const sidebarCategorySearch = ref('');
 let messageTimerId = null;
 let videosRequestId = 0;
 
@@ -252,6 +266,16 @@ const activeCategoryId = computed(() => {
 
   const value = Number(route.query.categoryId);
   return Number.isFinite(value) && value > 0 ? value : null;
+});
+const visibleSidebarCategories = computed(() => filterCategoryTree(categories.value, sidebarCategorySearch.value));
+const visibleExpandedCategoryIds = computed(() => {
+  if (!sidebarCategorySearch.value.trim()) {
+    return expandedCategoryIds.value;
+  }
+  return new Set([
+    ...expandedCategoryIds.value,
+    ...collectSearchExpandedCategoryIds(visibleSidebarCategories.value, sidebarCategorySearch.value),
+  ]);
 });
 const breadcrumbs = computed(() => {
   if (route.path === '/' || route.path === '/videos') {
@@ -859,6 +883,55 @@ function videoThumbnailUrl(videoId) {
 
 function avatarUrl(userId) {
   return `${api.userAvatarUrl(userId)}?v=${avatarVersion.value}`;
+}
+
+function normalizeSearchValue(value) {
+  return value.trim().toLowerCase();
+}
+
+function filterCategoryTree(nodes, searchValue) {
+  const query = normalizeSearchValue(searchValue);
+  if (!query) {
+    return nodes;
+  }
+
+  return nodes.flatMap((node) => {
+    const name = normalizeSearchValue(node.name || '');
+    const slug = normalizeSearchValue(node.slug || '');
+    const matches = name.includes(query) || slug.includes(query);
+    const children = matches ? (node.children || []) : filterCategoryTree(node.children || [], query);
+
+    if (!matches && children.length === 0) {
+      return [];
+    }
+
+    return [{ ...node, children }];
+  });
+}
+
+function collectSearchExpandedCategoryIds(nodes, searchValue) {
+  const query = normalizeSearchValue(searchValue);
+  if (!query) {
+    return [];
+  }
+
+  const expandedIds = [];
+
+  function hasMatch(node) {
+    const name = normalizeSearchValue(node.name || '');
+    const slug = normalizeSearchValue(node.slug || '');
+    const matches = name.includes(query) || slug.includes(query);
+    const hasMatchingChild = (node.children || []).some((child) => hasMatch(child));
+
+    if (hasMatchingChild) {
+      expandedIds.push(node.id);
+    }
+
+    return matches || hasMatchingChild;
+  }
+
+  nodes.forEach((node) => hasMatch(node));
+  return expandedIds;
 }
 
 function findCategoryPath(categoryId, nodes = categories.value, trail = []) {

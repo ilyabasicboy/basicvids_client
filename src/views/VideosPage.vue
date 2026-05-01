@@ -38,14 +38,40 @@
         </div>
         <div class="video-filter-row">
           <fieldset class="video-category-filter">
-            <legend>Category</legend>
-            <div v-if="categoryOptions.length === 0" class="video-category-filter-empty">No categories</div>
-            <label v-for="option in categoryOptions" v-else :key="option.id" class="video-category-option">
-              <input v-model="pendingCategoryIds" type="checkbox" :value="String(option.id)" />
-              <span>{{ option.label }}</span>
-            </label>
+            <legend>Categories</legend>
+            <button
+              type="button"
+              class="video-category-toggle"
+              :aria-expanded="String(categoryFilterOpen)"
+              @click="categoryFilterOpen = !categoryFilterOpen"
+            >
+              <span>{{ categoryFilterOpen ? 'Hide categories' : 'Show categories' }}</span>
+              <strong>{{ pendingCategoryIds.length }}</strong>
+            </button>
+            <template v-if="categoryFilterOpen">
+              <input
+                v-if="categoryOptions.length > 0"
+                v-model.trim="categorySearchQuery"
+                type="search"
+                class="video-category-search"
+                placeholder="Search categories"
+                autocomplete="off"
+              />
+              <div class="video-category-options">
+                <div v-if="categoryOptions.length === 0" class="video-category-filter-empty">No categories</div>
+                <div v-else-if="filteredCategoryOptions.length === 0" class="video-category-filter-empty">
+                  No matching categories
+                </div>
+                <template v-else>
+                  <label v-for="option in filteredCategoryOptions" :key="option.id" class="video-category-option">
+                    <input v-model="pendingCategoryIds" type="checkbox" :value="String(option.id)" />
+                    <span>{{ option.label }}</span>
+                  </label>
+                </template>
+              </div>
+            </template>
           </fieldset>
-          <label>
+          <label class="video-filter-field">
             <span>Duration</span>
             <select v-model="durationFilter">
               <option value="">Any duration</option>
@@ -54,7 +80,7 @@
               <option value="over_20">More than 20 minutes</option>
             </select>
           </label>
-          <label>
+          <label class="video-filter-field">
             <span>Upload date</span>
             <select v-model="uploadedFilter">
               <option value="">Any date</option>
@@ -194,6 +220,8 @@ const pageSize = 30;
 const searchQuery = ref('');
 const pendingCategoryIds = ref(route.query.categoryId ? [String(route.query.categoryId)] : []);
 const appliedCategoryIds = ref([...pendingCategoryIds.value]);
+const categoryFilterOpen = ref(false);
+const categorySearchQuery = ref('');
 const durationFilter = ref('');
 const uploadedFilter = ref('');
 const currentPage = ref(1);
@@ -204,6 +232,7 @@ const totalPages = computed(() => Math.max(1, Math.ceil(props.videosCount / page
 const pageStart = computed(() => (props.videosCount === 0 ? 0 : (currentPage.value - 1) * pageSize + 1));
 const pageEnd = computed(() => Math.min(currentPage.value * pageSize, props.videosCount));
 const categoryOptions = computed(() => flattenCategories(props.categories));
+const filteredCategoryOptions = computed(() => flattenCategories(filterCategoryTree(props.categories, categorySearchQuery.value)));
 const hasActiveFilters = computed(() => Boolean(
   searchQuery.value.trim()
   || appliedCategoryIds.value.length > 0
@@ -260,6 +289,7 @@ function loadVideos(page = currentPage.value) {
 
 async function clearFilters() {
   searchQuery.value = '';
+  categorySearchQuery.value = '';
   pendingCategoryIds.value = [];
   appliedCategoryIds.value = [];
   durationFilter.value = '';
@@ -385,6 +415,30 @@ function flattenCategories(categories, level = 0) {
     },
     ...flattenCategories(category.children || [], level + 1),
   ]);
+}
+
+function normalizeSearchValue(value) {
+  return value.trim().toLowerCase();
+}
+
+function filterCategoryTree(categories, searchValue) {
+  const query = normalizeSearchValue(searchValue);
+  if (!query) {
+    return categories;
+  }
+
+  return categories.flatMap((category) => {
+    const name = normalizeSearchValue(category.name || '');
+    const slug = normalizeSearchValue(category.slug || '');
+    const matches = name.includes(query) || slug.includes(query);
+    const children = matches ? (category.children || []) : filterCategoryTree(category.children || [], query);
+
+    if (!matches && children.length === 0) {
+      return [];
+    }
+
+    return [{ ...category, children }];
+  });
 }
 
 function findCategoryById(categoryId, categories) {
