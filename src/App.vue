@@ -1102,6 +1102,12 @@ watch(activeCategoryId, () => {
 
 onMounted(async () => {
   document.addEventListener('click', handleDocumentClick);
+  api.setAuthFailureHandler(() => {
+    if (authToken.value) {
+      logout('Session expired.', 'error');
+      router.push('/auth');
+    }
+  });
   if (window.innerWidth <= 980) {
     isSidebarCollapsed.value = true;
   }
@@ -1120,6 +1126,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   document.removeEventListener('click', handleDocumentClick);
+  api.setAuthFailureHandler(null);
   if (messageTimerId) {
     clearTimeout(messageTimerId);
   }

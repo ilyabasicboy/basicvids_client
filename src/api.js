@@ -1,7 +1,31 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const REFRESH_PATH = '/api/v1/auth/refresh/';
+let refreshPromise = null;
+let authFailureHandler = null;
 
-async function request(path, options = {}) {
-  const token = localStorage.getItem('basicvids_access_token');
+function getAccessToken() {
+  return localStorage.getItem('basicvids_access_token');
+}
+
+function getRefreshToken() {
+  return localStorage.getItem('basicvids_refresh_token');
+}
+
+function setAuthTokens(accessToken, refreshToken) {
+  localStorage.setItem('basicvids_access_token', accessToken);
+  localStorage.setItem('basicvids_refresh_token', refreshToken);
+}
+
+function clearAuthTokens() {
+  localStorage.removeItem('basicvids_access_token');
+  localStorage.removeItem('basicvids_refresh_token');
+}
+
+function setAuthFailureHandler(handler) {
+  authFailureHandler = typeof handler === 'function' ? handler : null;
+}
+
+function buildHeaders(options = {}, token = getAccessToken()) {
   const headers = new Headers(options.headers || {});
 
   if (!(options.body instanceof FormData) && !headers.has('Content-Type')) {
@@ -12,26 +36,84 @@ async function request(path, options = {}) {
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    ...options,
-    headers,
-  });
+  return headers;
+}
 
+async function parseResponse(response) {
   const contentType = response.headers.get('content-type') || '';
   const hasNoBody = response.status === 204 || response.status === 205;
   const bodyText = hasNoBody ? '' : await response.text();
   const data = contentType.includes('application/json') && bodyText ? JSON.parse(bodyText) : bodyText;
+  return { contentType, data };
+}
+
+function buildRequestError(data) {
+  let message = 'Request failed';
+
+  if (typeof data === 'object' && data?.detail) {
+    message = Array.isArray(data.detail)
+      ? data.detail.map((item) => item.msg || item.detail || 'Validation error').join('. ')
+      : data.detail;
+  }
+
+  return new Error(message);
+}
+
+async function refreshAccessToken() {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) {
+    throw new Error('Refresh token missing');
+  }
+
+  if (!refreshPromise) {
+    refreshPromise = (async () => {
+      const response = await fetch(`${API_BASE_URL}${REFRESH_PATH}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ refresh_token: refreshToken }),
+      });
+      const { data } = await parseResponse(response);
+
+      if (!response.ok) {
+        clearAuthTokens();
+        if (authFailureHandler) {
+          authFailureHandler();
+        }
+        throw buildRequestError(data);
+      }
+
+      setAuthTokens(data.access_token, data.refresh_token);
+      return data.access_token;
+    })().finally(() => {
+      refreshPromise = null;
+    });
+  }
+
+  return refreshPromise;
+}
+
+async function request(path, options = {}, allowRefresh = true) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: buildHeaders(options),
+  });
+  const { data } = await parseResponse(response);
+
+  if (
+    response.status === 401
+    && allowRefresh
+    && path !== REFRESH_PATH
+    && getAccessToken()
+    && getRefreshToken()
+  ) {
+    await refreshAccessToken();
+    return request(path, options, false);
+  }
 
   if (!response.ok) {
-    let message = 'Request failed';
-
-    if (typeof data === 'object' && data?.detail) {
-      message = Array.isArray(data.detail)
-        ? data.detail.map((item) => item.msg || item.detail || 'Validation error').join('. ')
-        : data.detail;
-    }
-
-    throw new Error(message);
+    throw buildRequestError(data);
   }
 
   return data;
@@ -39,6 +121,7 @@ async function request(path, options = {}) {
 
 export const api = {
   baseUrl: API_BASE_URL || window.location.origin,
+  setAuthFailureHandler,
 
   health() {
     return request('/health');
@@ -49,6 +132,13 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ identifier, password }),
     });
+  },
+
+  refresh(refreshToken = getRefreshToken()) {
+    return request(REFRESH_PATH, {
+      method: 'POST',
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    }, false);
   },
 
   createAccount(account) {
