@@ -34,9 +34,19 @@
               ×
             </button>
           </div>
+          <button
+            type="button"
+            class="ghost-button filter-toggle-button"
+            :aria-expanded="String(filtersOpen)"
+            @click="filtersOpen = !filtersOpen"
+          >
+            <span>{{ filtersOpen ? 'Hide filter' : 'Show filter' }}</span>
+            <strong v-if="activeFilterCount > 0">{{ activeFilterCount }}</strong>
+            <small class="filter-toggle-arrow" aria-hidden="true">{{ filtersOpen ? '↑' : '↓' }}</small>
+          </button>
           <button type="submit" class="ghost-button">Search</button>
         </div>
-        <div class="video-filter-row">
+        <div v-if="filtersOpen" class="video-filter-row">
           <fieldset class="video-category-filter">
             <legend>Categories</legend>
             <button
@@ -91,11 +101,10 @@
             </select>
           </label>
         </div>
+        <button v-if="filtersOpen && hasActiveFilters" type="button" class="ghost-button clear-filter-button" @click="clearFilters">
+          Clear
+        </button>
       </form>
-
-      <button v-if="hasActiveFilters" type="button" class="ghost-button clear-filter-button" @click="clearFilters">
-        Clear
-      </button>
 
       <div v-if="isLoadingVideos && displayedVideos.length === 0" class="empty-state">Loading videos...</div>
       <div v-else-if="displayedVideos.length === 0" class="empty-state">
@@ -232,6 +241,7 @@ const uploadedFilter = ref('');
 const currentPage = ref(1);
 const displayedVideos = ref([...props.videos]);
 const pendingDeleteVideo = ref(null);
+const filtersOpen = ref(false);
 
 const totalPages = computed(() => Math.max(1, Math.ceil(props.videosCount / pageSize)));
 const pageStart = computed(() => (props.videosCount === 0 ? 0 : (currentPage.value - 1) * pageSize + 1));
@@ -243,6 +253,11 @@ const hasActiveFilters = computed(() => Boolean(
   || appliedCategoryIds.value.length > 0
   || durationFilter.value
   || uploadedFilter.value,
+));
+const activeFilterCount = computed(() => (
+  (appliedCategoryIds.value.length > 0 ? 1 : 0)
+  + (durationFilter.value ? 1 : 0)
+  + (uploadedFilter.value ? 1 : 0)
 ));
 const selectedCategories = computed(() => appliedCategoryIds.value
   .map((categoryId) => findCategoryById(Number(categoryId), props.categories))
@@ -299,6 +314,7 @@ async function clearFilters() {
   appliedCategoryIds.value = [];
   durationFilter.value = '';
   uploadedFilter.value = '';
+  categoryFilterOpen.value = false;
   if (route.query.categoryId) {
     await router.push('/videos');
   }

@@ -844,6 +844,28 @@ h2 {
   align-items: center;
 }
 
+.filter-toggle-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-toggle-button strong {
+  display: grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 999px;
+  background: #28433d;
+  color: #ffffff;
+  font-size: 0.78rem;
+}
+
+.filter-toggle-arrow {
+  font-size: 0.92rem;
+  line-height: 1;
+}
+
 .video-filter-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(180px, 1fr));

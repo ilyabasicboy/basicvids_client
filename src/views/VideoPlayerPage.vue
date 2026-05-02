@@ -246,6 +246,10 @@ let processingPollTimerId = null;
 let historySaveTimerId = null;
 let lastRegisteredViewVideoId = null;
 let lastSavedHistoryPosition = -1;
+let trackedPlayerElement = null;
+let detachHistoryListeners = null;
+let pendingHistoryPosition = null;
+let restoredHistoryVideoId = null;
 const selectedQuality = ref('');
 const videoTitle = computed(() => video.value?.title || video.value?.original_filename || 'Video');
 const canEdit = computed(() => Boolean(video.value && props.currentUser?.id === video.value.author_id));
@@ -333,6 +337,14 @@ function clearHistorySaveTimer() {
   }
 }
 
+function detachMediaHistoryTracking() {
+  if (detachHistoryListeners) {
+    detachHistoryListeners();
+    detachHistoryListeners = null;
+  }
+  trackedPlayerElement = null;
+}
+
 async function loadCurrentComments() {
   if (!route.params.videoId) {
     return;
@@ -410,8 +422,23 @@ async function refreshEngagement() {
   };
 }
 
-function getMediaElement() {
-  return mediaPlayerElement.value?.querySelector('video') || null;
+function getPlayerElement() {
+  return mediaPlayerElement.value || null;
+}
+
+function applyPendingHistoryPosition() {
+  const player = getPlayerElement();
+  if (!player || pendingHistoryPosition == null) {
+    return;
+  }
+
+  if (!Number.isFinite(player.duration) || player.duration <= 0) {
+    return;
+  }
+
+  player.currentTime = pendingHistoryPosition;
+  lastSavedHistoryPosition = pendingHistoryPosition;
+  pendingHistoryPosition = null;
 }
 
 async function restoreWatchHistory() {
@@ -419,30 +446,26 @@ async function restoreWatchHistory() {
     return;
   }
 
+  if (restoredHistoryVideoId === video.value.id) {
+    applyPendingHistoryPosition();
+    return;
+  }
+
   try {
     const history = await props.getVideoHistory(video.value.id);
     if (!history?.last_position_seconds || history.completed) {
+      restoredHistoryVideoId = video.value.id;
+      pendingHistoryPosition = null;
       return;
     }
 
-    let attempts = 0;
-    const applyPosition = () => {
-      const media = getMediaElement();
-      if (!media) {
-        attempts += 1;
-        if (attempts < 10) {
-          window.setTimeout(applyPosition, 300);
-        }
-        return;
-      }
-
-      media.currentTime = history.last_position_seconds;
-      lastSavedHistoryPosition = history.last_position_seconds;
-    };
-
-    applyPosition();
+    restoredHistoryVideoId = video.value.id;
+    pendingHistoryPosition = history.last_position_seconds;
+    applyPendingHistoryPosition();
   } catch {
     // No history entry yet.
+    restoredHistoryVideoId = video.value.id;
+    pendingHistoryPosition = null;
   }
 }
 
@@ -454,7 +477,7 @@ function startHistorySync() {
 
   historySaveTimerId = window.setInterval(() => {
     saveWatchHistoryProgress();
-  }, 15000);
+  }, 5000);
 }
 
 async function saveWatchHistoryProgress(force = false) {
@@ -462,13 +485,13 @@ async function saveWatchHistoryProgress(force = false) {
     return;
   }
 
-  const media = getMediaElement();
-  if (!media || !Number.isFinite(media.currentTime)) {
+  const player = getPlayerElement();
+  if (!player || !Number.isFinite(player.currentTime)) {
     return;
   }
 
-  const position = Math.max(0, media.currentTime || 0);
-  const duration = Number.isFinite(media.duration) && media.duration > 0 ? media.duration : null;
+  const position = Math.max(0, player.currentTime || 0);
+  const duration = Number.isFinite(player.duration) && player.duration > 0 ? player.duration : null;
   const completed = Boolean(duration && position >= Math.max(duration - 5, duration * 0.95));
 
   if (!force && Math.abs(position - lastSavedHistoryPosition) < 10 && !completed) {
@@ -485,6 +508,54 @@ async function saveWatchHistoryProgress(force = false) {
   } catch {
     // Ignore intermittent history sync failures.
   }
+}
+
+function attachMediaHistoryTracking() {
+  const player = getPlayerElement();
+  if (!player || trackedPlayerElement === player) {
+    applyPendingHistoryPosition();
+    return;
+  }
+
+  detachMediaHistoryTracking();
+  trackedPlayerElement = player;
+
+  const handleLoadedMetadata = () => {
+    applyPendingHistoryPosition();
+  };
+  const handlePause = () => {
+    saveWatchHistoryProgress(true);
+  };
+  const handleEnded = () => {
+    saveWatchHistoryProgress(true);
+  };
+  const handleTimeUpdate = () => {
+    saveWatchHistoryProgress();
+  };
+
+  player.addEventListener('loaded-metadata', handleLoadedMetadata);
+  player.addEventListener('pause', handlePause);
+  player.addEventListener('ended', handleEnded);
+  player.addEventListener('time-update', handleTimeUpdate);
+
+  detachHistoryListeners = () => {
+    player.removeEventListener('loaded-metadata', handleLoadedMetadata);
+    player.removeEventListener('pause', handlePause);
+    player.removeEventListener('ended', handleEnded);
+    player.removeEventListener('time-update', handleTimeUpdate);
+  };
+
+  applyPendingHistoryPosition();
+}
+
+function handleVisibilityChange() {
+  if (document.visibilityState === 'hidden') {
+    saveWatchHistoryProgress(true);
+  }
+}
+
+function handlePageHide() {
+  saveWatchHistoryProgress(true);
 }
 
 async function applyReaction(targetReaction) {
@@ -577,10 +648,17 @@ function flattenCategories(categories, level = 0) {
 }
 
 onMounted(loadCurrentVideo);
+onMounted(() => {
+  document.addEventListener('visibilitychange', handleVisibilityChange);
+  window.addEventListener('pagehide', handlePageHide);
+});
 onUnmounted(() => {
   saveWatchHistoryProgress(true);
+  detachMediaHistoryTracking();
   clearHistorySaveTimer();
   stopProcessingPolling();
+  document.removeEventListener('visibilitychange', handleVisibilityChange);
+  window.removeEventListener('pagehide', handlePageHide);
 });
 watch(() => route.params.videoId, loadCurrentVideo);
 watch(() => [video.value?.id, video.value?.status], ([videoId, status]) => {
@@ -588,12 +666,24 @@ watch(() => [video.value?.id, video.value?.status], ([videoId, status]) => {
     maybeRegisterView();
     restoreWatchHistory();
     startHistorySync();
+    window.setTimeout(() => {
+      attachMediaHistoryTracking();
+    }, 0);
   }
   if (status !== 'ready') {
     lastRegisteredViewVideoId = null;
     lastSavedHistoryPosition = -1;
+    restoredHistoryVideoId = null;
+    pendingHistoryPosition = null;
     clearHistorySaveTimer();
+    detachMediaHistoryTracking();
   }
   resetSelectedQuality();
+});
+watch(activePlayerSource, () => {
+  window.setTimeout(() => {
+    attachMediaHistoryTracking();
+    applyPendingHistoryPosition();
+  }, 0);
 });
 </script>
