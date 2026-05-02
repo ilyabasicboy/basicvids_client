@@ -26,6 +26,7 @@
         </div>
         <media-player
           :key="playerKey"
+          ref="mediaPlayerElement"
           class="video-player"
           load="eager"
           preload="metadata"
@@ -215,9 +216,11 @@ const props = defineProps({
   isAuthenticated: { type: Boolean, default: false },
   isChangingVideo: { type: Boolean, default: false },
   loadComments: { type: Function, required: true },
+  getVideoHistory: { type: Function, required: true },
   loadVideo: { type: Function, required: true },
   loadVideoEngagement: { type: Function, required: true },
   registerVideoView: { type: Function, required: true },
+  saveVideoHistory: { type: Function, required: true },
   setVideoReaction: { type: Function, required: true },
   videoThumbnailUrl: { type: Function, required: true },
   videoHlsUrl: { type: Function, required: true },
@@ -238,8 +241,11 @@ const errorMessage = ref('');
 const isEditing = ref(false);
 const commentText = ref('');
 const pendingDeleteVideo = ref(null);
+const mediaPlayerElement = ref(null);
 let processingPollTimerId = null;
+let historySaveTimerId = null;
 let lastRegisteredViewVideoId = null;
+let lastSavedHistoryPosition = -1;
 const selectedQuality = ref('');
 const videoTitle = computed(() => video.value?.title || video.value?.original_filename || 'Video');
 const canEdit = computed(() => Boolean(video.value && props.currentUser?.id === video.value.author_id));
@@ -294,6 +300,7 @@ async function loadCurrentVideo(loadComments = true) {
       await loadCurrentComments();
     }
     maybeRegisterView();
+    await restoreWatchHistory();
   } catch (error) {
     video.value = null;
     errorMessage.value = error.message || 'Video not found.';
@@ -316,6 +323,13 @@ function stopProcessingPolling() {
   if (processingPollTimerId) {
     clearTimeout(processingPollTimerId);
     processingPollTimerId = null;
+  }
+}
+
+function clearHistorySaveTimer() {
+  if (historySaveTimerId) {
+    clearInterval(historySaveTimerId);
+    historySaveTimerId = null;
   }
 }
 
@@ -394,6 +408,83 @@ async function refreshEngagement() {
     views_count: summary.views_count,
     user_reaction: summary.user_reaction,
   };
+}
+
+function getMediaElement() {
+  return mediaPlayerElement.value?.querySelector('video') || null;
+}
+
+async function restoreWatchHistory() {
+  if (!video.value || !props.isAuthenticated || video.value.status !== 'ready') {
+    return;
+  }
+
+  try {
+    const history = await props.getVideoHistory(video.value.id);
+    if (!history?.last_position_seconds || history.completed) {
+      return;
+    }
+
+    let attempts = 0;
+    const applyPosition = () => {
+      const media = getMediaElement();
+      if (!media) {
+        attempts += 1;
+        if (attempts < 10) {
+          window.setTimeout(applyPosition, 300);
+        }
+        return;
+      }
+
+      media.currentTime = history.last_position_seconds;
+      lastSavedHistoryPosition = history.last_position_seconds;
+    };
+
+    applyPosition();
+  } catch {
+    // No history entry yet.
+  }
+}
+
+function startHistorySync() {
+  clearHistorySaveTimer();
+  if (!props.isAuthenticated || !video.value || video.value.status !== 'ready') {
+    return;
+  }
+
+  historySaveTimerId = window.setInterval(() => {
+    saveWatchHistoryProgress();
+  }, 15000);
+}
+
+async function saveWatchHistoryProgress(force = false) {
+  if (!props.isAuthenticated || !video.value || video.value.status !== 'ready') {
+    return;
+  }
+
+  const media = getMediaElement();
+  if (!media || !Number.isFinite(media.currentTime)) {
+    return;
+  }
+
+  const position = Math.max(0, media.currentTime || 0);
+  const duration = Number.isFinite(media.duration) && media.duration > 0 ? media.duration : null;
+  const completed = Boolean(duration && position >= Math.max(duration - 5, duration * 0.95));
+
+  if (!force && Math.abs(position - lastSavedHistoryPosition) < 10 && !completed) {
+    return;
+  }
+
+  lastSavedHistoryPosition = position;
+  try {
+    await props.saveVideoHistory(video.value.id, {
+      last_position_seconds: position,
+      duration_seconds: duration,
+      completed,
+    });
+  } catch {
+    // Ignore intermittent history sync failures.
+  }
 }
 
 async function applyReaction(targetReaction) {
@@ -487,15 +578,21 @@ function flattenCategories(categories, level = 0) {
 
 onMounted(loadCurrentVideo);
 onUnmounted(() => {
+  saveWatchHistoryProgress(true);
+  clearHistorySaveTimer();
   stopProcessingPolling();
 });
 watch(() => route.params.videoId, loadCurrentVideo);
 watch(() => [video.value?.id, video.value?.status], ([videoId, status]) => {
   if (videoId && status === 'ready') {
     maybeRegisterView();
+    restoreWatchHistory();
+    startHistorySync();
   }
   if (status !== 'ready') {
     lastRegisteredViewVideoId = null;
+    lastSavedHistoryPosition = -1;
+    clearHistorySaveTimer();
   }
   resetSelectedQuality();
 });

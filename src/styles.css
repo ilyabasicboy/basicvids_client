@@ -395,6 +395,92 @@ button {
   min-height: 32px;
 }
 
+.history-list {
+  display: grid;
+  gap: 14px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.history-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  align-items: center;
+  border: 1px solid #d7dee2;
+  border-radius: 8px;
+  padding: 14px;
+  background: #ffffff;
+}
+
+.history-card-link {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+  color: inherit;
+  text-decoration: none;
+}
+
+.history-tile {
+  position: relative;
+  min-height: 124px;
+  border: 1px solid #d7dee2;
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: #243b36;
+  background-position: center;
+  background-size: cover;
+}
+
+.history-tile.fallback {
+  background: linear-gradient(135deg, #243b36 0%, #1b6b5b 52%, #d84f3f 100%);
+}
+
+.history-meta {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.history-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: #66706b;
+  font-weight: 700;
+}
+
+.history-progress-badge {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  padding: 6px 10px;
+  color: #ffffff;
+  background: rgba(9, 12, 14, 0.82);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.history-remove-button {
+  min-height: 40px;
+  border: 1px solid #c8d0d4;
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: #ffffff;
+  color: #171717;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.history-remove-button:disabled {
+  opacity: 0.62;
+  cursor: default;
+}
+
 .breadcrumb-link {
   display: inline-flex;
   align-items: center;

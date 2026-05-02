@@ -278,6 +278,37 @@ export const api = {
     });
   },
 
+  upsertVideoHistory(videoId, payload) {
+    return request(`/api/v1/history/videos/${videoId}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  listVideoHistory({ offset = 0, limit = 20 } = {}) {
+    const params = new URLSearchParams({
+      offset: String(offset),
+      limit: String(limit),
+    });
+    return request(`/api/v1/history/videos/?${params.toString()}`);
+  },
+
+  getVideoHistory(videoId) {
+    return request(`/api/v1/history/videos/${videoId}`);
+  },
+
+  deleteVideoHistory(videoId) {
+    return request(`/api/v1/history/videos/${videoId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  clearVideoHistory() {
+    return request('/api/v1/history/videos/', {
+      method: 'DELETE',
+    });
+  },
+
   videoUrl(videoId, quality = null) {
     const params = new URLSearchParams();
     if (quality) {

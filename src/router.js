@@ -4,6 +4,7 @@ import CategoriesPage from './views/CategoriesPage.vue';
 import CreateAccountPage from './views/CreateAccountPage.vue';
 import CurrentUserPage from './views/CurrentUserPage.vue';
 import LoginPage from './views/LoginPage.vue';
+import WatchHistoryPage from './views/WatchHistoryPage.vue';
 import UploadVideoPage from './views/UploadVideoPage.vue';
 import UserVideosPage from './views/UserVideosPage.vue';
 import VideoPlayerPage from './views/VideoPlayerPage.vue';
@@ -18,6 +19,7 @@ export const router = createRouter({
     { path: '/videos/:videoId', name: 'video-player', component: VideoPlayerPage },
     { path: '/categories', name: 'categories', component: CategoriesPage },
     { path: '/user-videos', name: 'user-videos', component: UserVideosPage },
+    { path: '/watch-history', name: 'watch-history', component: WatchHistoryPage },
     { path: '/auth', name: 'auth', component: LoginPage },
     { path: '/create-account', name: 'create-account', component: CreateAccountPage },
     { path: '/confirm-email', name: 'confirm-email', component: ConfirmEmailPage },

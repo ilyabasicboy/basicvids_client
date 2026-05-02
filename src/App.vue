@@ -111,6 +111,9 @@
                 <RouterLink class="user-menu-link" to="/user-videos" @click="closeUserMenu">
                   Videos
                 </RouterLink>
+                <RouterLink class="user-menu-link" to="/watch-history" @click="closeUserMenu">
+                  Watch history
+                </RouterLink>
                 <RouterLink v-if="currentUser?.is_admin" class="user-menu-link" to="/categories" @click="closeUserMenu">
                   Manage categories
                 </RouterLink>
@@ -180,6 +183,11 @@
             :load-video-engagement="loadVideoEngagement"
             :set-video-reaction="setVideoReaction"
             :register-video-view="registerVideoView"
+            :load-watch-history="loadWatchHistory"
+            :get-video-history="getVideoHistory"
+            :save-video-history="saveVideoHistory"
+            :delete-video-history="deleteVideoHistory"
+            :clear-watch-history="clearWatchHistory"
             :upload-file="uploadFile"
             :video-thumbnail-url="videoThumbnailUrl"
             :video-hls-url="videoHlsUrl"
@@ -310,6 +318,13 @@ const breadcrumbs = computed(() => {
     return [
       { label: 'Home', to: '/videos' },
       { label: 'User videos', to: '/user-videos' },
+    ];
+  }
+
+  if (route.path === '/watch-history') {
+    return [
+      { label: 'Home', to: '/videos' },
+      { label: 'Watch history', to: '/watch-history' },
     ];
   }
 
@@ -532,6 +547,38 @@ async function registerVideoView(videoId, watchedSeconds = null) {
   } catch (error) {
     return null;
   }
+}
+
+async function loadWatchHistory(options = {}) {
+  const response = await api.listVideoHistory(options);
+  const items = await Promise.all((response.items || []).map(async (item) => {
+    try {
+      const video = await loadVideo(item.video_id);
+      return { ...item, video };
+    } catch {
+      return { ...item, video: null };
+    }
+  }));
+  return {
+    items,
+    count: response.count || 0,
+  };
+}
+
+async function getVideoHistory(videoId) {
+  return api.getVideoHistory(videoId);
+}
+
+async function saveVideoHistory(videoId, payload) {
+  return api.upsertVideoHistory(videoId, payload);
+}
+
+async function deleteVideoHistory(videoId) {
+  return api.deleteVideoHistory(videoId);
+}
+
+async function clearWatchHistory() {
+  return api.clearVideoHistory();
 }
 
 async function loadComments(videoId) {
