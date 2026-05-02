@@ -686,7 +686,6 @@ async function login(credentials) {
 
 async function applyAuthResponse(response) {
   localStorage.setItem('basicvids_access_token', response.access_token);
-  localStorage.setItem('basicvids_refresh_token', response.refresh_token);
   authToken.value = response.access_token;
   scheduleProactiveAuthRefresh(response.access_token);
   currentUser.value = await api.currentUser();
@@ -833,6 +832,11 @@ function logout(text = 'Signed out.', type = 'info') {
 }
 
 async function handleLogout() {
+  try {
+    await api.logout();
+  } catch {
+    // local logout still wins if the server-side session is already gone
+  }
   logout();
   await router.push('/videos');
 }

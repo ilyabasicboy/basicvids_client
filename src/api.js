@@ -8,13 +8,9 @@ function getAccessToken() {
   return localStorage.getItem('basicvids_access_token');
 }
 
-function getRefreshToken() {
-  return localStorage.getItem('basicvids_refresh_token');
-}
-
-function setAuthTokens(accessToken, refreshToken) {
+function setAuthTokens(accessToken) {
   localStorage.setItem('basicvids_access_token', accessToken);
-  localStorage.setItem('basicvids_refresh_token', refreshToken);
+  localStorage.removeItem('basicvids_refresh_token');
 }
 
 function clearAuthTokens() {
@@ -65,19 +61,15 @@ function buildRequestError(data) {
 }
 
 async function refreshAccessToken() {
-  const refreshToken = getRefreshToken();
-  if (!refreshToken) {
-    throw new Error('Refresh token missing');
-  }
-
   if (!refreshPromise) {
     refreshPromise = (async () => {
       const response = await fetch(`${API_BASE_URL}${REFRESH_PATH}`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ refresh_token: refreshToken }),
+        body: JSON.stringify({}),
       });
       const { data } = await parseResponse(response);
 
@@ -89,7 +81,7 @@ async function refreshAccessToken() {
         throw buildRequestError(data);
       }
 
-      setAuthTokens(data.access_token, data.refresh_token);
+      setAuthTokens(data.access_token);
       if (authRefreshHandler) {
         authRefreshHandler(data);
       }
@@ -105,6 +97,7 @@ async function refreshAccessToken() {
 async function request(path, options = {}, allowRefresh = true) {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...options,
+    credentials: 'include',
     headers: buildHeaders(options),
   });
   const { data } = await parseResponse(response);
@@ -114,7 +107,6 @@ async function request(path, options = {}, allowRefresh = true) {
     && allowRefresh
     && path !== REFRESH_PATH
     && getAccessToken()
-    && getRefreshToken()
   ) {
     await refreshAccessToken();
     return request(path, options, false);
@@ -143,11 +135,15 @@ export const api = {
     });
   },
 
-  refresh(refreshToken = getRefreshToken()) {
-    if (refreshToken && refreshToken !== getRefreshToken()) {
-      localStorage.setItem('basicvids_refresh_token', refreshToken);
-    }
+  refresh() {
     return refreshAccessToken();
+  },
+
+  logout() {
+    return request('/api/v1/auth/logout/', {
+      method: 'POST',
+      body: JSON.stringify({}),
+    }, false);
   },
 
   createAccount(account) {
