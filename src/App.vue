@@ -261,6 +261,8 @@ const expandedCategoryIds = ref(new Set());
 const sidebarCategorySearch = ref('');
 let messageTimerId = null;
 let videosRequestId = 0;
+let authRefreshTimerId = null;
+const ACCESS_TOKEN_REFRESH_LEAD_MS = 60 * 1000;
 
 const isAuthenticated = computed(() => Boolean(authToken.value));
 const navItems = computed(() => {
@@ -373,6 +375,61 @@ function setMessage(text, type = 'info') {
       messageTimerId = null;
     }, 5000);
   }
+}
+
+function clearAuthRefreshTimer() {
+  if (authRefreshTimerId) {
+    clearTimeout(authRefreshTimerId);
+    authRefreshTimerId = null;
+  }
+}
+
+function parseJwtPayload(token) {
+  try {
+    const payloadPart = token.split('.')[1];
+    if (!payloadPart) {
+      return null;
+    }
+    const normalizedPayload = payloadPart.replace(/-/g, '+').replace(/_/g, '/');
+    const paddedPayload = normalizedPayload.padEnd(Math.ceil(normalizedPayload.length / 4) * 4, '=');
+    return JSON.parse(window.atob(paddedPayload));
+  } catch {
+    return null;
+  }
+}
+
+async function refreshAuthSessionProactively() {
+  try {
+    const response = await api.refresh();
+    authToken.value = response.access_token;
+    scheduleProactiveAuthRefresh(response.access_token);
+  } catch {
+    // auth failure handler will process expired refresh tokens
+  }
+}
+
+function scheduleProactiveAuthRefresh(token = authToken.value) {
+  clearAuthRefreshTimer();
+  if (!token) {
+    return;
+  }
+
+  const payload = parseJwtPayload(token);
+  if (!payload?.exp) {
+    return;
+  }
+
+  const refreshAt = (payload.exp * 1000) - ACCESS_TOKEN_REFRESH_LEAD_MS;
+  const delayMs = refreshAt - Date.now();
+
+  if (delayMs <= 0) {
+    void refreshAuthSessionProactively();
+    return;
+  }
+
+  authRefreshTimerId = window.setTimeout(() => {
+    void refreshAuthSessionProactively();
+  }, delayMs);
 }
 
 function isNavActive(item) {
@@ -631,6 +688,7 @@ async function applyAuthResponse(response) {
   localStorage.setItem('basicvids_access_token', response.access_token);
   localStorage.setItem('basicvids_refresh_token', response.refresh_token);
   authToken.value = response.access_token;
+  scheduleProactiveAuthRefresh(response.access_token);
   currentUser.value = await api.currentUser();
 }
 
@@ -767,6 +825,7 @@ async function deleteUser() {
 function logout(text = 'Signed out.', type = 'info') {
   localStorage.removeItem('basicvids_access_token');
   localStorage.removeItem('basicvids_refresh_token');
+  clearAuthRefreshTimer();
   authToken.value = null;
   currentUser.value = null;
   closeUserMenu();
@@ -1108,6 +1167,10 @@ onMounted(async () => {
       router.push('/auth');
     }
   });
+  api.setAuthRefreshHandler((response) => {
+    authToken.value = response.access_token;
+    scheduleProactiveAuthRefresh(response.access_token);
+  });
   if (window.innerWidth <= 980) {
     isSidebarCollapsed.value = true;
   }
@@ -1118,6 +1181,8 @@ onMounted(async () => {
   if (localStorage.getItem('basicvids_access_token')) {
     try {
       currentUser.value = await api.currentUser();
+      authToken.value = localStorage.getItem('basicvids_access_token');
+      scheduleProactiveAuthRefresh(authToken.value);
     } catch (error) {
       logout();
     }
@@ -1127,6 +1192,8 @@ onMounted(async () => {
 onUnmounted(() => {
   document.removeEventListener('click', handleDocumentClick);
   api.setAuthFailureHandler(null);
+  api.setAuthRefreshHandler(null);
+  clearAuthRefreshTimer();
   if (messageTimerId) {
     clearTimeout(messageTimerId);
   }

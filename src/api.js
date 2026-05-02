@@ -2,6 +2,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
 const REFRESH_PATH = '/api/v1/auth/refresh/';
 let refreshPromise = null;
 let authFailureHandler = null;
+let authRefreshHandler = null;
 
 function getAccessToken() {
   return localStorage.getItem('basicvids_access_token');
@@ -23,6 +24,10 @@ function clearAuthTokens() {
 
 function setAuthFailureHandler(handler) {
   authFailureHandler = typeof handler === 'function' ? handler : null;
+}
+
+function setAuthRefreshHandler(handler) {
+  authRefreshHandler = typeof handler === 'function' ? handler : null;
 }
 
 function buildHeaders(options = {}, token = getAccessToken()) {
@@ -85,7 +90,10 @@ async function refreshAccessToken() {
       }
 
       setAuthTokens(data.access_token, data.refresh_token);
-      return data.access_token;
+      if (authRefreshHandler) {
+        authRefreshHandler(data);
+      }
+      return data;
     })().finally(() => {
       refreshPromise = null;
     });
@@ -122,6 +130,7 @@ async function request(path, options = {}, allowRefresh = true) {
 export const api = {
   baseUrl: API_BASE_URL || window.location.origin,
   setAuthFailureHandler,
+  setAuthRefreshHandler,
 
   health() {
     return request('/health');
@@ -135,10 +144,10 @@ export const api = {
   },
 
   refresh(refreshToken = getRefreshToken()) {
-    return request(REFRESH_PATH, {
-      method: 'POST',
-      body: JSON.stringify({ refresh_token: refreshToken }),
-    }, false);
+    if (refreshToken && refreshToken !== getRefreshToken()) {
+      localStorage.setItem('basicvids_refresh_token', refreshToken);
+    }
+    return refreshAccessToken();
   },
 
   createAccount(account) {
