@@ -831,6 +831,13 @@ function logout(text = 'Signed out.', type = 'info') {
   setMessage(typeof text === 'string' ? text : 'Signed out.', type);
 }
 
+async function expireSession() {
+  logout('Session expired.', 'error');
+  if (route.path !== '/auth') {
+    await router.push('/auth');
+  }
+}
+
 async function handleLogout() {
   try {
     await api.logout();
@@ -1166,10 +1173,7 @@ watch(activeCategoryId, () => {
 onMounted(async () => {
   document.addEventListener('click', handleDocumentClick);
   api.setAuthFailureHandler(() => {
-    if (authToken.value) {
-      logout('Session expired.', 'error');
-      router.push('/auth');
-    }
+    void expireSession();
   });
   api.setAuthRefreshHandler((response) => {
     authToken.value = response.access_token;
