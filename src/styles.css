@@ -481,6 +481,124 @@ button {
   cursor: default;
 }
 
+.channel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.channel-card {
+  display: grid;
+  border: 1px solid #d7dee2;
+  border-radius: 16px;
+  padding: 12px;
+  background: #ffffff;
+  transition: background-color 160ms ease, box-shadow 160ms ease, transform 160ms ease;
+}
+
+.channel-card:hover,
+.channel-card:focus-within {
+  background: #eef3ef;
+  box-shadow: 0 18px 40px rgba(18, 40, 45, 0.1);
+  transform: translateY(-1px);
+}
+
+.channel-card-link {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 14px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.channel-card-mark,
+.channel-hero-mark {
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  color: rgba(255, 255, 255, 0.76);
+  background:
+    radial-gradient(circle at 18% 16%, rgba(255, 255, 255, 0.22), transparent 24%),
+    linear-gradient(135deg, #243b36 0%, #1b6b5b 56%, #d84f3f 100%);
+  font-weight: 900;
+}
+
+.channel-card-mark {
+  width: 74px;
+  height: 74px;
+  font-size: 1.8rem;
+}
+
+.channel-card-body {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.channel-card-body strong {
+  color: #171717;
+  overflow-wrap: anywhere;
+}
+
+.channel-card-body small,
+.channel-card-body p {
+  color: #66706b;
+}
+
+.channel-card-body p {
+  margin: 0;
+}
+
+.channel-hero-panel {
+  gap: 22px;
+}
+
+.channel-hero {
+  display: grid;
+  grid-template-columns: 118px minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+}
+
+.channel-hero-mark {
+  width: 118px;
+  height: 118px;
+  font-size: 3rem;
+}
+
+.channel-hero h2,
+.channel-hero p {
+  margin: 0;
+}
+
+.channel-video-picker {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #d7dee2;
+  border-radius: 12px;
+  padding: 14px;
+  background: #f7faf8;
+}
+
+.channel-video-picker legend {
+  padding: 0 6px;
+  color: #243b36;
+  font-weight: 800;
+}
+
+.channel-video-option {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #e2e7e9;
+  border-radius: 8px;
+  padding: 10px;
+  background: #ffffff;
+}
+
 .breadcrumb-link {
   display: inline-flex;
   align-items: center;

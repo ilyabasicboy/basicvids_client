@@ -330,6 +330,106 @@ export const api = {
     });
   },
 
+  listMyChannels() {
+    return request('/api/v1/channels/me/');
+  },
+
+  createChannel(payload) {
+    return request('/api/v1/channels/', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  getChannel(channelId) {
+    return request(`/api/v1/channels/${channelId}`);
+  },
+
+  changeChannel(channelId, payload) {
+    return request(`/api/v1/channels/${channelId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deleteChannel(channelId) {
+    return request(`/api/v1/channels/${channelId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  listMyChannelSubscriptions() {
+    return request('/api/v1/channels/subscriptions/me/');
+  },
+
+  subscribeToChannel(channelId) {
+    return request(`/api/v1/channels/${channelId}/subscriptions/`, {
+      method: 'POST',
+    });
+  },
+
+  unsubscribeFromChannel(channelId) {
+    return request(`/api/v1/channels/${channelId}/subscriptions/`, {
+      method: 'DELETE',
+    });
+  },
+
+  listChannelVideos(channelId) {
+    return request(`/api/v1/channels/${channelId}/videos/`);
+  },
+
+  addVideoToChannel(channelId, videoId) {
+    return request(`/api/v1/channels/${channelId}/videos/${videoId}`, {
+      method: 'POST',
+    });
+  },
+
+  removeVideoFromChannel(channelId, videoId) {
+    return request(`/api/v1/channels/${channelId}/videos/${videoId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  listChannelPlaylists(channelId) {
+    return request(`/api/v1/channels/${channelId}/playlists/`);
+  },
+
+  createChannelPlaylist(channelId, payload) {
+    return request(`/api/v1/channels/${channelId}/playlists/`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  getChannelPlaylist(channelId, playlistId) {
+    return request(`/api/v1/channels/${channelId}/playlists/${playlistId}`);
+  },
+
+  changeChannelPlaylist(channelId, playlistId, payload) {
+    return request(`/api/v1/channels/${channelId}/playlists/${playlistId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+  },
+
+  deleteChannelPlaylist(channelId, playlistId) {
+    return request(`/api/v1/channels/${channelId}/playlists/${playlistId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  addVideoToChannelPlaylist(channelId, playlistId, videoId) {
+    return request(`/api/v1/channels/${channelId}/playlists/${playlistId}/videos/${videoId}`, {
+      method: 'POST',
+    });
+  },
+
+  removeVideoFromChannelPlaylist(channelId, playlistId, videoId) {
+    return request(`/api/v1/channels/${channelId}/playlists/${playlistId}/videos/${videoId}`, {
+      method: 'DELETE',
+    });
+  },
+
   listComments(videoId) {
     const params = new URLSearchParams({ video_id: videoId });
     return request(`/api/v1/comments/?${params.toString()}`);

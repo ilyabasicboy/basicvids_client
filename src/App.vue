@@ -111,6 +111,9 @@
                 <RouterLink class="user-menu-link" to="/user-videos" @click="closeUserMenu">
                   Videos
                 </RouterLink>
+                <RouterLink class="user-menu-link" to="/channels" @click="closeUserMenu">
+                  Channels
+                </RouterLink>
                 <RouterLink class="user-menu-link" to="/watch-history" @click="closeUserMenu">
                   Watch history
                 </RouterLink>
@@ -188,6 +191,22 @@
             :save-video-history="saveVideoHistory"
             :delete-video-history="deleteVideoHistory"
             :clear-watch-history="clearWatchHistory"
+            :list-my-channels="listMyChannels"
+            :load-channel="loadChannel"
+            :create-channel="createChannel"
+            :change-channel="changeChannel"
+            :delete-channel="deleteChannel"
+            :subscribe-to-channel="subscribeToChannel"
+            :unsubscribe-from-channel="unsubscribeFromChannel"
+            :load-channel-videos="loadChannelVideos"
+            :remove-video-from-channel="removeVideoFromChannel"
+            :load-channel-playlists="loadChannelPlaylists"
+            :load-channel-playlist="loadChannelPlaylist"
+            :create-channel-playlist="createChannelPlaylist"
+            :change-channel-playlist="changeChannelPlaylist"
+            :delete-channel-playlist="deleteChannelPlaylist"
+            :add-video-to-channel-playlist="addVideoToChannelPlaylist"
+            :remove-video-from-channel-playlist="removeVideoFromChannelPlaylist"
             :upload-file="uploadFile"
             :video-thumbnail-url="videoThumbnailUrl"
             :video-hls-url="videoHlsUrl"
@@ -321,6 +340,44 @@ const breadcrumbs = computed(() => {
       { label: 'Home', to: '/videos' },
       { label: 'User videos', to: '/user-videos' },
     ];
+  }
+
+  if (route.path === '/channels') {
+    return [
+      { label: 'Home', to: '/videos' },
+      { label: 'Channels', to: '/channels' },
+    ];
+  }
+
+  if (route.path === '/channels/create') {
+    return [
+      { label: 'Home', to: '/videos' },
+      { label: 'Channels', to: '/channels' },
+      { label: 'Create channel', to: '/channels/create' },
+    ];
+  }
+
+  if (route.path.startsWith('/channels/')) {
+    const crumbs = [
+      { label: 'Home', to: '/videos' },
+      { label: 'Channels', to: '/channels' },
+      { label: 'Channel', to: `/channels/${route.params.channelId}` },
+    ];
+    if (route.path.endsWith('/edit')) {
+      crumbs.push({ label: 'Edit', to: route.fullPath });
+    } else if (route.path.endsWith('/upload')) {
+      crumbs.push({ label: 'Upload video', to: route.fullPath });
+    } else if (route.path.endsWith('/videos')) {
+      crumbs.push({ label: 'Videos', to: route.fullPath });
+    } else if (route.path.includes('/playlists')) {
+      crumbs.push({ label: 'Playlists', to: `/channels/${route.params.channelId}/playlists` });
+      if (route.path.endsWith('/create')) {
+        crumbs.push({ label: 'Create playlist', to: route.fullPath });
+      } else if (route.path.endsWith('/edit')) {
+        crumbs.push({ label: 'Edit playlist', to: route.fullPath });
+      }
+    }
+    return crumbs;
   }
 
   if (route.path === '/watch-history') {
@@ -636,6 +693,151 @@ async function deleteVideoHistory(videoId) {
 
 async function clearWatchHistory() {
   return api.clearVideoHistory();
+}
+
+async function listMyChannels() {
+  return api.listMyChannels();
+}
+
+async function loadChannel(channelId) {
+  const channel = await api.getChannel(channelId);
+  if (!isAuthenticated.value) {
+    return channel;
+  }
+  try {
+    const response = await api.listMyChannelSubscriptions();
+    const isSubscribed = (response.subscriptions || []).some((item) => item.channel_id === channelId);
+    return { ...channel, is_subscribed: isSubscribed };
+  } catch {
+    return channel;
+  }
+}
+
+async function createChannel(payload) {
+  try {
+    const channel = await api.createChannel(payload);
+    setMessage('Channel created.', 'success');
+    return channel;
+  } catch (error) {
+    setMessage(error.message, 'error');
+    throw error;
+  }
+}
+
+async function changeChannel(channelId, payload) {
+  try {
+    const channel = await api.changeChannel(channelId, payload);
+    setMessage('Channel updated.', 'success');
+    return channel;
+  } catch (error) {
+    setMessage(error.message, 'error');
+    throw error;
+  }
+}
+
+async function deleteChannel(channelId) {
+  try {
+    await api.deleteChannel(channelId);
+    setMessage('Channel deleted.', 'success');
+  } catch (error) {
+    setMessage(error.message, 'error');
+    throw error;
+  }
+}
+
+async function subscribeToChannel(channelId) {
+  try {
+    const subscription = await api.subscribeToChannel(channelId);
+    setMessage('Subscribed to channel.', 'success');
+    return subscription;
+  } catch (error) {
+    setMessage(error.message, 'error');
+    throw error;
+  }
+}
+
+async function unsubscribeFromChannel(channelId) {
+  try {
+    await api.unsubscribeFromChannel(channelId);
+    setMessage('Subscription removed.', 'success');
+  } catch (error) {
+    setMessage(error.message, 'error');
+    throw error;
+  }
+}
+
+async function loadChannelVideos(channelId) {
+  const response = await api.listChannelVideos(channelId);
+  const items = await Promise.all((response.videos || []).map(async (item) => {
+    try {
+      const video = await loadVideo(item.video_id);
+      return { ...item, video };
+    } catch {
+      return { ...item, video: null };
+    }
+  }));
+  return { videos: items, count: response.count || 0 };
+}
+
+async function removeVideoFromChannel(channelId, videoId) {
+  return api.removeVideoFromChannel(channelId, videoId);
+}
+
+async function loadChannelPlaylists(channelId) {
+  return api.listChannelPlaylists(channelId);
+}
+
+async function loadChannelPlaylist(channelId, playlistId) {
+  const playlist = await api.getChannelPlaylist(channelId, playlistId);
+  const items = await Promise.all((playlist.items || []).map(async (item) => {
+    try {
+      const video = await loadVideo(item.video_id);
+      return { ...item, video };
+    } catch {
+      return { ...item, video: null };
+    }
+  }));
+  return { ...playlist, items };
+}
+
+async function createChannelPlaylist(channelId, payload) {
+  try {
+    const playlist = await api.createChannelPlaylist(channelId, payload);
+    setMessage('Playlist created.', 'success');
+    return playlist;
+  } catch (error) {
+    setMessage(error.message, 'error');
+    throw error;
+  }
+}
+
+async function changeChannelPlaylist(channelId, playlistId, payload) {
+  try {
+    const playlist = await api.changeChannelPlaylist(channelId, playlistId, payload);
+    setMessage('Playlist updated.', 'success');
+    return playlist;
+  } catch (error) {
+    setMessage(error.message, 'error');
+    throw error;
+  }
+}
+
+async function deleteChannelPlaylist(channelId, playlistId) {
+  try {
+    await api.deleteChannelPlaylist(channelId, playlistId);
+    setMessage('Playlist deleted.', 'success');
+  } catch (error) {
+    setMessage(error.message, 'error');
+    throw error;
+  }
+}
+
+async function addVideoToChannelPlaylist(channelId, playlistId, videoId) {
+  return api.addVideoToChannelPlaylist(channelId, playlistId, videoId);
+}
+
+async function removeVideoFromChannelPlaylist(channelId, playlistId, videoId) {
+  return api.removeVideoFromChannelPlaylist(channelId, playlistId, videoId);
 }
 
 async function loadComments(videoId) {
@@ -993,10 +1195,14 @@ async function uploadSelectedVideo(upload) {
       await api.uploadVideoThumbnail(createdVideo.id, upload.thumbnail);
     }
 
+    if (upload?.channelId) {
+      await api.addVideoToChannel(upload.channelId, createdVideo.id);
+    }
+
     uploadFile.value = null;
     clearUploadState();
     await loadVideos();
-    await router.push('/videos');
+    await router.push(upload?.channelId ? `/channels/${upload.channelId}/videos` : '/videos');
     setMessage('Video uploaded. Processing started.', 'success');
   } catch (error) {
     setUploadState(uploadProgress.value, 'Upload paused', 'Retry the same file to continue from the last uploaded chunk.');
