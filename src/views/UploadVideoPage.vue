@@ -2,8 +2,8 @@
   <section class="auth-page-grid upload-page">
     <article v-if="isAuthenticated" class="panel upload-panel">
       <div class="panel-heading">
-        <p class="eyebrow">Storage</p>
-        <h2>Upload video</h2>
+        <p class="eyebrow">{{ headingEyebrow }}</p>
+        <h2>{{ headingTitle }}</h2>
       </div>
 
       <form class="auth-form" @submit.prevent="submit">
@@ -61,8 +61,8 @@
 
     <article v-else class="panel upload-panel">
       <div class="panel-heading">
-        <p class="eyebrow">Storage</p>
-        <h2>Upload video</h2>
+        <p class="eyebrow">{{ headingEyebrow }}</p>
+        <h2>{{ headingTitle }}</h2>
       </div>
       <div class="empty-state">
         <RouterLink class="inline-link" to="/auth">Sign in to upload videos.</RouterLink>
@@ -83,6 +83,8 @@ const props = defineProps({
   uploadProgress: { type: Number, default: 0 },
   uploadProgressText: { type: String, default: '' },
   uploadStatus: { type: String, default: '' },
+  headingEyebrow: { type: String, default: 'Storage' },
+  headingTitle: { type: String, default: 'Upload video' },
 });
 
 const emit = defineEmits(['upload-video']);

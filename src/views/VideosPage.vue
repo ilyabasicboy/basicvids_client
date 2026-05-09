@@ -142,6 +142,14 @@
                   <small class="video-card-age">{{ formatRelativeTime(video.created_at) }}</small>
                 </div>
               </RouterLink>
+              <RouterLink
+                v-if="video.channel"
+                class="video-card-channel-link"
+                :to="`/channels/${video.channel.id}`"
+              >
+                <span class="video-card-channel-mark">{{ getInitial(video.channel.name) }}</span>
+                <span>{{ video.channel.name }}</span>
+              </RouterLink>
               <button
                 v-if="canDelete(video)"
                 class="video-tile-delete"

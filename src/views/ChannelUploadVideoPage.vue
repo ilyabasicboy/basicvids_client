@@ -1,32 +1,21 @@
 <template>
-  <section class="auth-page-grid upload-page">
-    <article v-if="isAuthenticated" class="panel upload-panel">
-      <div class="panel-heading">
-        <p class="eyebrow">Channel video</p>
-        <h2>Upload to {{ channel?.name || 'channel' }}</h2>
-      </div>
-      <UploadVideoPage
-        :categories="categories"
-        :is-authenticated="isAuthenticated"
-        :is-uploading="isUploading"
-        :format-bytes="formatBytes"
-        :upload-progress="uploadProgress"
-        :upload-progress-text="uploadProgressText"
-        :upload-status="uploadStatus"
-        @upload-video="uploadToChannel"
-      />
-    </article>
-    <article v-else class="panel upload-panel">
-      <div class="empty-state">
-        <RouterLink class="inline-link" to="/auth">Sign in to upload videos.</RouterLink>
-      </div>
-    </article>
-  </section>
+  <UploadVideoPage
+    :categories="categories"
+    :is-authenticated="isAuthenticated"
+    :is-uploading="isUploading"
+    :format-bytes="formatBytes"
+    :upload-progress="uploadProgress"
+    :upload-progress-text="uploadProgressText"
+    :upload-status="uploadStatus"
+    heading-eyebrow="Channel Video"
+    :heading-title="`Upload to ${channel?.name || 'channel'}`"
+    @upload-video="uploadToChannel"
+  />
 </template>
 
 <script setup>
 import { onMounted, ref } from 'vue';
-import { RouterLink, useRoute } from 'vue-router';
+import { useRoute } from 'vue-router';
 import UploadVideoPage from './UploadVideoPage.vue';
 
 const props = defineProps({

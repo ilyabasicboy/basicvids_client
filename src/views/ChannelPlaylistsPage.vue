@@ -15,7 +15,7 @@
       <div v-else-if="playlists.length === 0" class="empty-state">No playlists yet.</div>
       <ul v-else class="channel-grid">
         <li v-for="playlist in playlists" :key="playlist.id" class="channel-card">
-          <RouterLink class="channel-card-link" :to="`/channels/${channelId}/playlists/${playlist.id}/edit`">
+          <RouterLink class="channel-card-link" :to="`/channels/${channelId}/playlists/${playlist.id}`">
             <div class="channel-card-mark">PL</div>
             <div class="channel-card-body">
               <strong>{{ playlist.title }}</strong>

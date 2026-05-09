@@ -49,6 +49,14 @@
 
       <div v-if="video" class="video-meta-strip">
         <RouterLink
+          v-if="videoChannel"
+          class="video-channel-pill"
+          :to="`/channels/${videoChannel.id}`"
+        >
+          <span class="video-channel-mark">{{ getInitial(videoChannel.name) }}</span>
+          <span>{{ videoChannel.name }}</span>
+        </RouterLink>
+        <RouterLink
           v-if="video.category"
           class="video-category-pill"
           :to="{ path: '/videos', query: { categoryId: String(video.category.id) } }"
@@ -218,6 +226,7 @@ const props = defineProps({
   loadComments: { type: Function, required: true },
   getVideoHistory: { type: Function, required: true },
   loadVideo: { type: Function, required: true },
+  loadVideoChannel: { type: Function, required: true },
   loadVideoEngagement: { type: Function, required: true },
   registerVideoView: { type: Function, required: true },
   saveVideoHistory: { type: Function, required: true },
@@ -232,6 +241,7 @@ const emit = defineEmits(['delete-video']);
 
 const route = useRoute();
 const video = ref(null);
+const videoChannel = ref(null);
 const comments = ref([]);
 const isLoading = ref(false);
 const isLoadingComments = ref(false);
@@ -290,6 +300,10 @@ const form = reactive({
   categoryId: '',
 });
 
+function getInitial(value = '') {
+  return value.trim().charAt(0).toUpperCase() || 'C';
+}
+
 async function loadCurrentVideo(loadComments = true) {
   stopProcessingPolling();
   isLoading.value = true;
@@ -297,6 +311,7 @@ async function loadCurrentVideo(loadComments = true) {
 
   try {
     video.value = await props.loadVideo(route.params.videoId);
+    await loadCurrentVideoChannel();
     resetForm();
     resetSelectedQuality();
     scheduleProcessingPolling();
@@ -307,9 +322,23 @@ async function loadCurrentVideo(loadComments = true) {
     await restoreWatchHistory();
   } catch (error) {
     video.value = null;
+    videoChannel.value = null;
     errorMessage.value = error.message || 'Video not found.';
   } finally {
     isLoading.value = false;
+  }
+}
+
+async function loadCurrentVideoChannel() {
+  videoChannel.value = null;
+  if (!video.value?.id) {
+    return;
+  }
+
+  try {
+    videoChannel.value = await props.loadVideoChannel(video.value.id);
+  } catch {
+    videoChannel.value = null;
   }
 }
 

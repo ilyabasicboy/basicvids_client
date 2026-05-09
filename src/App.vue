@@ -191,8 +191,10 @@
             :save-video-history="saveVideoHistory"
             :delete-video-history="deleteVideoHistory"
             :clear-watch-history="clearWatchHistory"
+            :list-channels="listChannels"
             :list-my-channels="listMyChannels"
             :load-channel="loadChannel"
+            :load-video-channel="loadVideoChannel"
             :create-channel="createChannel"
             :change-channel="changeChannel"
             :delete-channel="deleteChannel"
@@ -206,6 +208,7 @@
             :change-channel-playlist="changeChannelPlaylist"
             :delete-channel-playlist="deleteChannelPlaylist"
             :add-video-to-channel-playlist="addVideoToChannelPlaylist"
+            :change-channel-playlist-video-position="changeChannelPlaylistVideoPosition"
             :remove-video-from-channel-playlist="removeVideoFromChannelPlaylist"
             :upload-file="uploadFile"
             :video-thumbnail-url="videoThumbnailUrl"
@@ -287,6 +290,7 @@ const isAuthenticated = computed(() => Boolean(authToken.value));
 const navItems = computed(() => {
   return [
     { id: 'home', label: 'Home', shortLabel: 'H', status: 'Videos', to: '/videos', activePaths: ['/videos'] },
+    { id: 'channels', label: 'Channels', shortLabel: 'C', status: 'Explore', to: '/channels/explore', activePaths: ['/channels/explore'] },
   ];
 });
 const userLabel = computed(() => currentUser.value?.username || currentUser.value?.email || 'Guest');
@@ -345,7 +349,14 @@ const breadcrumbs = computed(() => {
   if (route.path === '/channels') {
     return [
       { label: 'Home', to: '/videos' },
-      { label: 'Channels', to: '/channels' },
+      { label: 'My channels', to: '/channels' },
+    ];
+  }
+
+  if (route.path === '/channels/explore') {
+    return [
+      { label: 'Home', to: '/videos' },
+      { label: 'Channels', to: '/channels/explore' },
     ];
   }
 
@@ -363,19 +374,20 @@ const breadcrumbs = computed(() => {
       { label: 'Channels', to: '/channels' },
       { label: 'Channel', to: `/channels/${route.params.channelId}` },
     ];
-    if (route.path.endsWith('/edit')) {
-      crumbs.push({ label: 'Edit', to: route.fullPath });
-    } else if (route.path.endsWith('/upload')) {
-      crumbs.push({ label: 'Upload video', to: route.fullPath });
-    } else if (route.path.endsWith('/videos')) {
-      crumbs.push({ label: 'Videos', to: route.fullPath });
-    } else if (route.path.includes('/playlists')) {
+    if (route.path.includes('/playlists')) {
       crumbs.push({ label: 'Playlists', to: `/channels/${route.params.channelId}/playlists` });
       if (route.path.endsWith('/create')) {
         crumbs.push({ label: 'Create playlist', to: route.fullPath });
-      } else if (route.path.endsWith('/edit')) {
+      } else if (route.params.playlistId) {
+        crumbs.push({ label: 'Playlist', to: `/channels/${route.params.channelId}/playlists/${route.params.playlistId}` });
+      }
+      if (route.path.endsWith('/edit')) {
         crumbs.push({ label: 'Edit playlist', to: route.fullPath });
       }
+    } else if (route.path.endsWith('/edit')) {
+      crumbs.push({ label: 'Edit', to: route.fullPath });
+    } else if (route.path.endsWith('/upload')) {
+      crumbs.push({ label: 'Upload video', to: route.fullPath });
     }
     return crumbs;
   }
@@ -507,6 +519,13 @@ function mergeVideoEngagement(video, engagement) {
   };
 }
 
+function mergeVideoChannel(video, channel) {
+  return {
+    ...video,
+    channel: channel || video.channel || null,
+  };
+}
+
 async function attachEngagementToVideos(videoItems) {
   if (!Array.isArray(videoItems) || videoItems.length === 0) {
     return [];
@@ -518,6 +537,20 @@ async function attachEngagementToVideos(videoItems) {
     return videoItems.map((video) => mergeVideoEngagement(video, summaryByVideoId[video.id]));
   } catch {
     return videoItems.map((video) => mergeVideoEngagement(video));
+  }
+}
+
+async function attachChannelsToVideos(videoItems) {
+  if (!Array.isArray(videoItems) || videoItems.length === 0) {
+    return [];
+  }
+
+  try {
+    const response = await api.getVideoChannels(videoItems.map((video) => video.id));
+    const channelByVideoId = Object.fromEntries((response.items || []).map((item) => [item.video_id, item.channel]));
+    return videoItems.map((video) => mergeVideoChannel(video, channelByVideoId[video.id]));
+  } catch {
+    return videoItems.map((video) => mergeVideoChannel(video));
   }
 }
 
@@ -557,7 +590,8 @@ async function loadVideos(options = {}) {
   isLoadingVideos.value = true;
   try {
     const response = await api.listVideos(normalizedOptions);
-    const hydratedVideos = await attachEngagementToVideos(response.videos || []);
+    const videosWithEngagement = await attachEngagementToVideos(response.videos || []);
+    const hydratedVideos = await attachChannelsToVideos(videosWithEngagement);
     if (requestId !== videosRequestId) {
       return;
     }
@@ -699,6 +733,10 @@ async function listMyChannels() {
   return api.listMyChannels();
 }
 
+async function listChannels(options = {}) {
+  return api.listChannels(options);
+}
+
 async function loadChannel(channelId) {
   const channel = await api.getChannel(channelId);
   if (!isAuthenticated.value) {
@@ -711,6 +749,10 @@ async function loadChannel(channelId) {
   } catch {
     return channel;
   }
+}
+
+async function loadVideoChannel(videoId) {
+  return api.getVideoChannel(videoId);
 }
 
 async function createChannel(payload) {
@@ -834,6 +876,10 @@ async function deleteChannelPlaylist(channelId, playlistId) {
 
 async function addVideoToChannelPlaylist(channelId, playlistId, videoId) {
   return api.addVideoToChannelPlaylist(channelId, playlistId, videoId);
+}
+
+async function changeChannelPlaylistVideoPosition(channelId, playlistId, videoId, position) {
+  return api.changeChannelPlaylistVideoPosition(channelId, playlistId, videoId, position);
 }
 
 async function removeVideoFromChannelPlaylist(channelId, playlistId, videoId) {
@@ -1202,7 +1248,7 @@ async function uploadSelectedVideo(upload) {
     uploadFile.value = null;
     clearUploadState();
     await loadVideos();
-    await router.push(upload?.channelId ? `/channels/${upload.channelId}/videos` : '/videos');
+    await router.push(upload?.channelId ? `/channels/${upload.channelId}` : '/videos');
     setMessage('Video uploaded. Processing started.', 'success');
   } catch (error) {
     setUploadState(uploadProgress.value, 'Upload paused', 'Retry the same file to continue from the last uploaded chunk.');

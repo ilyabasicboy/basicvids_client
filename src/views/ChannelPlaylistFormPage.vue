@@ -19,14 +19,65 @@
           <span>Description</span>
           <textarea v-model.trim="form.description" rows="4"></textarea>
         </label>
-        <fieldset class="channel-video-picker">
-          <legend>Playlist videos</legend>
+        <section class="playlist-video-picker" aria-labelledby="playlist-videos-title">
+          <div class="playlist-video-picker-head">
+            <div>
+              <h3 id="playlist-videos-title">Playlist videos</h3>
+              <p>Select videos from this channel to include in the playlist.</p>
+            </div>
+            <strong>{{ selectedVideoIds.length }} selected</strong>
+          </div>
+
+          <div v-if="channelVideos.length > 0" class="playlist-video-search">
+            <div class="search-input-wrap">
+              <input
+                v-model="videoSearchQuery"
+                type="search"
+                class="search-input"
+                placeholder="Search videos by title"
+                autocomplete="off"
+              />
+              <button
+                v-if="videoSearchQuery"
+                type="button"
+                class="search-clear-button"
+                aria-label="Clear video search"
+                @click="videoSearchQuery = ''"
+              >
+                ×
+              </button>
+            </div>
+          </div>
+
           <div v-if="channelVideos.length === 0" class="empty-state">Upload videos to this channel first.</div>
-          <label v-for="item in channelVideos" :key="item.id" class="channel-video-option">
-            <input v-model="selectedVideoIds" type="checkbox" :value="item.video_id" />
-            <span>{{ item.video?.title || item.video?.original_filename || item.video_id }}</span>
-          </label>
-        </fieldset>
+          <div v-else-if="filteredChannelVideos.length === 0" class="empty-state">No videos match your search.</div>
+          <div v-else class="playlist-video-grid">
+            <label
+              v-for="item in filteredChannelVideos"
+              :key="item.id"
+              class="playlist-video-card"
+              :class="{ selected: selectedVideoIds.includes(item.video_id) }"
+              :draggable="selectedVideoIds.includes(item.video_id)"
+              @dragstart="onVideoDragStart(item.video_id)"
+              @dragover.prevent
+              @drop.prevent="onVideoDrop(item.video_id)"
+            >
+              <input v-model="selectedVideoIds" type="checkbox" :value="item.video_id" />
+              <span
+                class="playlist-video-card-tile"
+                :class="{ fallback: !item.video?.has_thumbnail }"
+                :style="videoTileStyle(item.video)"
+              >
+                <span v-if="!item.video?.has_thumbnail" class="playlist-video-card-initial">
+                  {{ getInitial(item.video?.title || item.video?.original_filename || item.video_id) }}
+                </span>
+              </span>
+              <span class="playlist-video-card-title">
+                {{ item.video?.title || item.video?.original_filename || item.video_id }}
+              </span>
+            </label>
+          </div>
+        </section>
         <button class="primary-button" type="submit" :disabled="isSaving || !form.title">
           {{ isSaving ? 'Saving...' : 'Save playlist' }}
         </button>
@@ -47,7 +98,10 @@ const props = defineProps({
   changeChannelPlaylist: { type: Function, required: true },
   deleteChannelPlaylist: { type: Function, required: true },
   addVideoToChannelPlaylist: { type: Function, required: true },
+  changeChannelPlaylistVideoPosition: { type: Function, required: true },
   removeVideoFromChannelPlaylist: { type: Function, required: true },
+  getInitial: { type: Function, required: true },
+  videoThumbnailUrl: { type: Function, required: true },
 });
 
 const route = useRoute();
@@ -58,9 +112,26 @@ const channel = ref(null);
 const playlist = ref(null);
 const channelVideos = ref([]);
 const selectedVideoIds = ref([]);
+const videoSearchQuery = ref('');
+const draggedVideoId = ref(null);
 const isSaving = ref(false);
 const isDeleting = ref(false);
 const form = reactive({ title: '', description: '' });
+const filteredChannelVideos = computed(() => {
+  const query = videoSearchQuery.value.trim().toLowerCase();
+  if (!query) {
+    return channelVideos.value;
+  }
+
+  return channelVideos.value.filter((item) => {
+    const video = item.video;
+    return [
+      video?.title,
+      video?.original_filename,
+      item.video_id,
+    ].some((value) => (value || '').toLowerCase().includes(query));
+  });
+});
 
 async function loadPage() {
   channel.value = await props.loadChannel(channelId.value);
@@ -71,6 +142,7 @@ async function loadPage() {
     form.title = playlist.value.title || '';
     form.description = playlist.value.description || '';
     selectedVideoIds.value = (playlist.value.items || []).map((item) => item.video_id);
+    sortChannelVideosByPlaylist();
   }
 }
 
@@ -94,7 +166,10 @@ async function submit() {
     await Promise.all([...nextIds].filter((videoId) => !oldIds.has(videoId)).map((videoId) => (
       props.addVideoToChannelPlaylist(channelId.value, saved.id, videoId)
     )));
-    await router.push(`/channels/${channelId.value}/playlists`);
+    await Promise.all(selectedVideoIds.value.map((videoId, index) => (
+      props.changeChannelPlaylistVideoPosition(channelId.value, saved.id, videoId, index)
+    )));
+    await router.push(`/channels/${channelId.value}/playlists/${saved.id}`);
   } finally {
     isSaving.value = false;
   }
@@ -108,6 +183,47 @@ async function removePlaylist() {
   } finally {
     isDeleting.value = false;
   }
+}
+
+function videoTileStyle(video) {
+  return video?.has_thumbnail ? { backgroundImage: `url("${props.videoThumbnailUrl(video.id)}")` } : {};
+}
+
+function sortChannelVideosByPlaylist() {
+  const positionByVideoId = new Map((playlist.value?.items || []).map((item) => [item.video_id, item.position]));
+  channelVideos.value = [...channelVideos.value].sort((left, right) => {
+    const leftPosition = positionByVideoId.has(left.video_id) ? positionByVideoId.get(left.video_id) : Number.MAX_SAFE_INTEGER;
+    const rightPosition = positionByVideoId.has(right.video_id) ? positionByVideoId.get(right.video_id) : Number.MAX_SAFE_INTEGER;
+    return leftPosition - rightPosition;
+  });
+}
+
+function onVideoDragStart(videoId) {
+  draggedVideoId.value = videoId;
+}
+
+function onVideoDrop(targetVideoId) {
+  const sourceVideoId = draggedVideoId.value;
+  draggedVideoId.value = null;
+  if (!sourceVideoId || sourceVideoId === targetVideoId) {
+    return;
+  }
+
+  const sourceIndex = selectedVideoIds.value.indexOf(sourceVideoId);
+  const targetIndex = selectedVideoIds.value.indexOf(targetVideoId);
+  if (sourceIndex === -1 || targetIndex === -1) {
+    return;
+  }
+
+  const nextIds = [...selectedVideoIds.value];
+  const [movedVideoId] = nextIds.splice(sourceIndex, 1);
+  nextIds.splice(targetIndex, 0, movedVideoId);
+  selectedVideoIds.value = nextIds;
+
+  const order = new Map(nextIds.map((videoId, index) => [videoId, index]));
+  channelVideos.value = [...channelVideos.value].sort((left, right) => (
+    (order.get(left.video_id) ?? Number.MAX_SAFE_INTEGER) - (order.get(right.video_id) ?? Number.MAX_SAFE_INTEGER)
+  ));
 }
 
 onMounted(loadPage);

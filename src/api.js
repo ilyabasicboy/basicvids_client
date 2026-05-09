@@ -334,6 +334,17 @@ export const api = {
     return request('/api/v1/channels/me/');
   },
 
+  listChannels({ search = '', page = 1, pageSize = 50 } = {}) {
+    const params = new URLSearchParams();
+    if (search) {
+      params.set('search', search);
+    }
+    params.set('page', String(page));
+    params.set('page_size', String(pageSize));
+
+    return request(`/api/v1/channels/?${params.toString()}`);
+  },
+
   createChannel(payload) {
     return request('/api/v1/channels/', {
       method: 'POST',
@@ -376,6 +387,17 @@ export const api = {
 
   listChannelVideos(channelId) {
     return request(`/api/v1/channels/${channelId}/videos/`);
+  },
+
+  getVideoChannel(videoId) {
+    return request(`/api/v1/channels/videos/${videoId}/channel`);
+  },
+
+  getVideoChannels(videoIds) {
+    return request('/api/v1/channels/videos/channels', {
+      method: 'POST',
+      body: JSON.stringify({ video_ids: videoIds }),
+    });
   },
 
   addVideoToChannel(channelId, videoId) {
@@ -421,6 +443,13 @@ export const api = {
   addVideoToChannelPlaylist(channelId, playlistId, videoId) {
     return request(`/api/v1/channels/${channelId}/playlists/${playlistId}/videos/${videoId}`, {
       method: 'POST',
+    });
+  },
+
+  changeChannelPlaylistVideoPosition(channelId, playlistId, videoId, position) {
+    return request(`/api/v1/channels/${channelId}/playlists/${playlistId}/videos/${videoId}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ position }),
     });
   },
 
