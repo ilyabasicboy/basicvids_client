@@ -28,7 +28,7 @@
             <strong>{{ selectedVideoIds.length }} selected</strong>
           </div>
 
-          <div v-if="channelVideos.length > 0" class="playlist-video-search">
+          <div v-if="channelVideos.length > 0" class="playlist-video-search" role="search">
             <div class="search-input-wrap">
               <input
                 v-model="videoSearchQuery"
@@ -36,17 +36,19 @@
                 class="search-input"
                 placeholder="Search videos by title"
                 autocomplete="off"
+                @keydown.enter.prevent="searchVideos"
               />
               <button
                 v-if="videoSearchQuery"
                 type="button"
                 class="search-clear-button"
                 aria-label="Clear video search"
-                @click="videoSearchQuery = ''"
+                @click="clearVideoSearch"
               >
                 ×
               </button>
             </div>
+            <button type="button" class="ghost-button" @click="searchVideos">Search</button>
           </div>
 
           <div v-if="channelVideos.length === 0" class="empty-state">Upload videos to this channel first.</div>
@@ -113,12 +115,13 @@ const playlist = ref(null);
 const channelVideos = ref([]);
 const selectedVideoIds = ref([]);
 const videoSearchQuery = ref('');
+const appliedVideoSearch = ref('');
 const draggedVideoId = ref(null);
 const isSaving = ref(false);
 const isDeleting = ref(false);
 const form = reactive({ title: '', description: '' });
 const filteredChannelVideos = computed(() => {
-  const query = videoSearchQuery.value.trim().toLowerCase();
+  const query = appliedVideoSearch.value.trim().toLowerCase();
   if (!query) {
     return channelVideos.value;
   }
@@ -183,6 +186,15 @@ async function removePlaylist() {
   } finally {
     isDeleting.value = false;
   }
+}
+
+function searchVideos() {
+  appliedVideoSearch.value = videoSearchQuery.value.trim();
+}
+
+function clearVideoSearch() {
+  videoSearchQuery.value = '';
+  appliedVideoSearch.value = '';
 }
 
 function videoTileStyle(video) {
