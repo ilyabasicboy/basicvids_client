@@ -1,5 +1,5 @@
 <template>
-  <section class="video-player-page">
+  <section class="video-player-page" :class="{ 'with-playlist-queue': showPlaylistQueue }">
     <article class="panel">
       <div class="panel-heading inline">
         <div>
@@ -40,6 +40,14 @@
           <media-outlet></media-outlet>
           <media-community-skin></media-community-skin>
         </media-player>
+        <div v-if="showPlaylistQueue" class="playlist-player-controls">
+          <button type="button" :disabled="!previousPlaylistItem" @click="playPreviousPlaylistVideo">
+            Previous
+          </button>
+          <button type="button" :disabled="!nextPlaylistItem" @click="playNextPlaylistVideo(false)">
+            Next
+          </button>
+        </div>
       </div>
       <div v-else-if="video?.status === 'processing'" class="empty-state">Video is still processing.</div>
       <div v-else-if="video?.status === 'failed'" class="empty-state">
@@ -91,6 +99,46 @@
         </div>
         <small class="video-engagement-views">{{ formatCount(video.views_count) }} views</small>
       </div>
+
+      <aside v-if="showPlaylistQueue" class="playlist-queue-panel" aria-labelledby="playlist-queue-title">
+        <div class="playlist-queue-head">
+          <div>
+            <p class="eyebrow">Playlist</p>
+            <h3 id="playlist-queue-title">{{ playlistContext?.title || 'Playlist queue' }}</h3>
+          </div>
+          <RouterLink v-if="playlistRouteContext" class="ghost-link" :to="playlistPageRoute">
+            Open playlist
+          </RouterLink>
+        </div>
+        <label class="playlist-autoplay-toggle">
+          <input v-model="playlistAutoplay" type="checkbox" />
+          <span>Autoplay next</span>
+        </label>
+        <ul class="playlist-queue-list">
+          <li
+            v-for="(item, index) in playlistItems"
+            :key="item.id"
+            class="playlist-queue-item"
+            :class="{ active: item.video_id === video?.id }"
+            :data-playlist-video-id="item.video_id"
+          >
+            <RouterLink v-if="item.video" class="playlist-queue-link" :to="playlistVideoRoute(item.video_id)">
+              <span class="playlist-queue-index">{{ index + 1 }}</span>
+              <span class="playlist-queue-thumb" :class="{ fallback: !item.video.has_thumbnail }" :style="videoTileStyle(item.video)">
+                <span v-if="!item.video.has_thumbnail">{{ getInitial(item.video.title || item.video.original_filename) }}</span>
+              </span>
+              <span class="playlist-queue-copy">
+                <strong>{{ item.video.title || item.video.original_filename }}</strong>
+                <small>{{ item.video_id === video?.id ? 'Now playing' : 'Play from playlist' }}</small>
+              </span>
+            </RouterLink>
+            <div v-else class="playlist-queue-missing">
+              <span class="playlist-queue-index">{{ index + 1 }}</span>
+              <span>Video unavailable</span>
+            </div>
+          </li>
+        </ul>
+      </aside>
 
       <form v-if="video" class="detail-form" @submit.prevent="submit">
         <dl class="detail-list">
@@ -212,7 +260,7 @@
 
 <script setup>
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
-import { RouterLink, useRoute } from 'vue-router';
+import { RouterLink, useRoute, useRouter } from 'vue-router';
 import UserAvatar from '../components/UserAvatar.vue';
 
 const props = defineProps({
@@ -227,6 +275,7 @@ const props = defineProps({
   getVideoHistory: { type: Function, required: true },
   loadVideo: { type: Function, required: true },
   loadVideoChannel: { type: Function, required: true },
+  loadChannelPlaylist: { type: Function, required: true },
   loadVideoEngagement: { type: Function, required: true },
   registerVideoView: { type: Function, required: true },
   saveVideoHistory: { type: Function, required: true },
@@ -240,8 +289,10 @@ const props = defineProps({
 const emit = defineEmits(['delete-video']);
 
 const route = useRoute();
+const router = useRouter();
 const video = ref(null);
 const videoChannel = ref(null);
+const playlistContext = ref(null);
 const comments = ref([]);
 const isLoading = ref(false);
 const isLoadingComments = ref(false);
@@ -260,7 +311,11 @@ let trackedPlayerElement = null;
 let detachHistoryListeners = null;
 let pendingHistoryPosition = null;
 let restoredHistoryVideoId = null;
+let playlistAdvanceInProgress = false;
+let playlistProgressTimerId = null;
+let lastKnownPlaybackDuration = null;
 const selectedQuality = ref('');
+const playlistAutoplay = ref(localStorage.getItem('basicvids_playlist_autoplay') !== '0');
 const videoTitle = computed(() => video.value?.title || video.value?.original_filename || 'Video');
 const canEdit = computed(() => Boolean(video.value && props.currentUser?.id === video.value.author_id));
 const currentReaction = computed(() => video.value?.user_reaction || null);
@@ -280,6 +335,26 @@ const activePlayerSource = computed(() => {
 });
 const playerKey = computed(() => `${video.value?.id || 'video'}:${activePlayerSource.value}`);
 const categoryOptions = computed(() => flattenCategories(props.categories));
+const playlistRouteContext = computed(() => {
+  const channelId = typeof route.query.channelId === 'string' ? route.query.channelId : '';
+  const playlistId = typeof route.query.playlistId === 'string' ? route.query.playlistId : '';
+  return channelId && playlistId ? { channelId, playlistId } : null;
+});
+const playlistItems = computed(() => [...(playlistContext.value?.items || [])].sort((left, right) => left.position - right.position));
+const currentPlaylistIndex = computed(() => playlistItems.value.findIndex((item) => item.video_id === video.value?.id));
+const showPlaylistQueue = computed(() => Boolean(playlistRouteContext.value && playlistContext.value && currentPlaylistIndex.value >= 0));
+const playlistPageRoute = computed(() => {
+  if (!playlistRouteContext.value) {
+    return '/videos';
+  }
+  return `/channels/${playlistRouteContext.value.channelId}/playlists/${playlistRouteContext.value.playlistId}`;
+});
+const previousPlaylistItem = computed(() => (
+  currentPlaylistIndex.value > 0 ? playlistItems.value[currentPlaylistIndex.value - 1] || null : null
+));
+const nextPlaylistItem = computed(() => (
+  currentPlaylistIndex.value >= 0 ? playlistItems.value[currentPlaylistIndex.value + 1] || null : null
+));
 const authorLabel = computed(() => {
   if (!video.value) {
     return 'Unknown author';
@@ -312,6 +387,7 @@ async function loadCurrentVideo(loadComments = true) {
   try {
     video.value = await props.loadVideo(route.params.videoId);
     await loadCurrentVideoChannel();
+    await loadPlaylistContext();
     resetForm();
     resetSelectedQuality();
     scheduleProcessingPolling();
@@ -323,9 +399,26 @@ async function loadCurrentVideo(loadComments = true) {
   } catch (error) {
     video.value = null;
     videoChannel.value = null;
+    playlistContext.value = null;
     errorMessage.value = error.message || 'Video not found.';
   } finally {
     isLoading.value = false;
+  }
+}
+
+async function loadPlaylistContext() {
+  playlistContext.value = null;
+  if (!playlistRouteContext.value) {
+    return;
+  }
+
+  try {
+    playlistContext.value = await props.loadChannelPlaylist(
+      playlistRouteContext.value.channelId,
+      playlistRouteContext.value.playlistId,
+    );
+  } catch {
+    playlistContext.value = null;
   }
 }
 
@@ -363,6 +456,32 @@ function clearHistorySaveTimer() {
   if (historySaveTimerId) {
     clearInterval(historySaveTimerId);
     historySaveTimerId = null;
+  }
+}
+
+function stopPlaylistProgressPolling() {
+  if (playlistProgressTimerId) {
+    clearInterval(playlistProgressTimerId);
+    playlistProgressTimerId = null;
+  }
+}
+
+function startPlaylistProgressPolling() {
+  stopPlaylistProgressPolling();
+  if (!showPlaylistQueue.value || !playlistAutoplay.value || !nextPlaylistItem.value?.video_id) {
+    return;
+  }
+
+  playlistProgressTimerId = window.setInterval(() => {
+    maybeAdvancePlaylistFromProgress();
+  }, 500);
+}
+
+function syncPlaylistProgressPolling() {
+  if (showPlaylistQueue.value && playlistAutoplay.value && nextPlaylistItem.value?.video_id) {
+    startPlaylistProgressPolling();
+  } else {
+    stopPlaylistProgressPolling();
   }
 }
 
@@ -455,13 +574,107 @@ function getPlayerElement() {
   return mediaPlayerElement.value || null;
 }
 
+function unwrapPlaybackValue(value) {
+  if (typeof value === 'function') {
+    try {
+      return value();
+    } catch {
+      return null;
+    }
+  }
+
+  if (value && typeof value === 'object' && 'value' in value) {
+    return value.value;
+  }
+
+  return value;
+}
+
+function readFiniteNumber(...values) {
+  for (const value of values) {
+    const unwrappedValue = unwrapPlaybackValue(value);
+    if (unwrappedValue == null || unwrappedValue === '') {
+      continue;
+    }
+
+    const numberValue = Number(unwrappedValue);
+    if (Number.isFinite(numberValue)) {
+      return numberValue;
+    }
+  }
+
+  return null;
+}
+
+function getNativeMediaElement(root = getPlayerElement()) {
+  if (!root) {
+    return null;
+  }
+
+  const selectors = ['video', 'audio', 'media-outlet video', 'media-outlet audio'];
+  for (const selector of selectors) {
+    const element = root.querySelector?.(selector);
+    if (element) {
+      return element;
+    }
+  }
+
+  const outlet = root.querySelector?.('media-outlet');
+  return root.shadowRoot?.querySelector?.('video, audio')
+    || outlet?.shadowRoot?.querySelector?.('video, audio')
+    || null;
+}
+
+function getPlaybackTiming(event = null) {
+  const player = getPlayerElement();
+  const nativeMedia = getNativeMediaElement(player);
+  const detail = event?.detail || {};
+  const state = player?.state || player?.mediaState || {};
+  const duration = readFiniteNumber(
+    detail.duration,
+    player?.duration,
+    state.duration,
+    nativeMedia?.duration,
+    lastKnownPlaybackDuration,
+    video.value?.duration_seconds,
+  );
+  const currentTime = readFiniteNumber(
+    detail.currentTime,
+    detail.time,
+    player?.currentTime,
+    state.currentTime,
+    nativeMedia?.currentTime,
+  );
+
+  if (duration && duration > 0) {
+    lastKnownPlaybackDuration = duration;
+  }
+
+  return { currentTime, duration };
+}
+
+function playlistVideoRoute(videoId) {
+  if (!playlistRouteContext.value) {
+    return `/videos/${videoId}`;
+  }
+
+  return {
+    path: `/videos/${videoId}`,
+    query: {
+      channelId: playlistRouteContext.value.channelId,
+      playlistId: playlistRouteContext.value.playlistId,
+    },
+  };
+}
+
 function applyPendingHistoryPosition() {
   const player = getPlayerElement();
   if (!player || pendingHistoryPosition == null) {
     return;
   }
 
-  if (!Number.isFinite(player.duration) || player.duration <= 0) {
+  const { duration } = getPlaybackTiming();
+  if (!duration || duration <= 0) {
     return;
   }
 
@@ -509,19 +722,19 @@ function startHistorySync() {
   }, 5000);
 }
 
-async function saveWatchHistoryProgress(force = false) {
+async function saveWatchHistoryProgress(force = false, event = null) {
   if (!props.isAuthenticated || !video.value || video.value.status !== 'ready') {
     return;
   }
 
-  const player = getPlayerElement();
-  if (!player || !Number.isFinite(player.currentTime)) {
+  const { currentTime, duration } = getPlaybackTiming(event);
+  if (currentTime == null) {
     return;
   }
 
-  const position = Math.max(0, player.currentTime || 0);
-  const duration = Number.isFinite(player.duration) && player.duration > 0 ? player.duration : null;
-  const completed = Boolean(duration && position >= Math.max(duration - 5, duration * 0.95));
+  const position = Math.max(0, currentTime || 0);
+  const normalizedDuration = duration && duration > 0 ? duration : null;
+  const completed = Boolean(normalizedDuration && position >= Math.max(normalizedDuration - 5, normalizedDuration * 0.95));
 
   if (!force && Math.abs(position - lastSavedHistoryPosition) < 10 && !completed) {
     return;
@@ -531,7 +744,7 @@ async function saveWatchHistoryProgress(force = false) {
   try {
     await props.saveVideoHistory(video.value.id, {
       last_position_seconds: position,
-      duration_seconds: duration,
+      duration_seconds: normalizedDuration,
       completed,
     });
   } catch {
@@ -552,29 +765,128 @@ function attachMediaHistoryTracking() {
   const handleLoadedMetadata = () => {
     applyPendingHistoryPosition();
   };
-  const handlePause = () => {
-    saveWatchHistoryProgress(true);
+  const handleCanPlay = (event) => {
+    getPlaybackTiming(event);
+    applyPendingHistoryPosition();
   };
-  const handleEnded = () => {
-    saveWatchHistoryProgress(true);
+  const handleDurationChange = (event) => {
+    getPlaybackTiming(event);
   };
-  const handleTimeUpdate = () => {
-    saveWatchHistoryProgress();
+  const handlePause = (event) => {
+    saveWatchHistoryProgress(true, event);
+  };
+  const handleEnded = (event) => {
+    saveWatchHistoryProgress(true, event);
+    void playNextPlaylistVideo(true);
+  };
+  const handleTimeUpdate = (event) => {
+    saveWatchHistoryProgress(false, event);
+    maybeAdvancePlaylistFromProgress(event);
+  };
+
+  let nativeMedia = null;
+  const detachNativeMediaListeners = () => {
+    if (!nativeMedia) {
+      return;
+    }
+
+    nativeMedia.removeEventListener('loadedmetadata', handleLoadedMetadata);
+    nativeMedia.removeEventListener('durationchange', handleDurationChange);
+    nativeMedia.removeEventListener('canplay', handleCanPlay);
+    nativeMedia.removeEventListener('pause', handlePause);
+    nativeMedia.removeEventListener('ended', handleEnded);
+    nativeMedia.removeEventListener('timeupdate', handleTimeUpdate);
+    nativeMedia = null;
+  };
+  const attachNativeMediaListeners = () => {
+    const nextNativeMedia = getNativeMediaElement(player);
+    if (!nextNativeMedia || nextNativeMedia === nativeMedia) {
+      return;
+    }
+
+    detachNativeMediaListeners();
+    nativeMedia = nextNativeMedia;
+    nativeMedia.addEventListener('loadedmetadata', handleLoadedMetadata);
+    nativeMedia.addEventListener('durationchange', handleDurationChange);
+    nativeMedia.addEventListener('canplay', handleCanPlay);
+    nativeMedia.addEventListener('pause', handlePause);
+    nativeMedia.addEventListener('ended', handleEnded);
+    nativeMedia.addEventListener('timeupdate', handleTimeUpdate);
   };
 
   player.addEventListener('loaded-metadata', handleLoadedMetadata);
+  player.addEventListener('duration-change', handleDurationChange);
+  player.addEventListener('can-play', handleCanPlay);
+  player.addEventListener('provider-change', attachNativeMediaListeners);
+  player.addEventListener('provider-setup', attachNativeMediaListeners);
   player.addEventListener('pause', handlePause);
+  player.addEventListener('end', handleEnded);
   player.addEventListener('ended', handleEnded);
+  player.addEventListener('media-ended', handleEnded);
   player.addEventListener('time-update', handleTimeUpdate);
+  player.addEventListener('timeupdate', handleTimeUpdate);
+  attachNativeMediaListeners();
 
   detachHistoryListeners = () => {
+    detachNativeMediaListeners();
     player.removeEventListener('loaded-metadata', handleLoadedMetadata);
+    player.removeEventListener('duration-change', handleDurationChange);
+    player.removeEventListener('can-play', handleCanPlay);
+    player.removeEventListener('provider-change', attachNativeMediaListeners);
+    player.removeEventListener('provider-setup', attachNativeMediaListeners);
     player.removeEventListener('pause', handlePause);
+    player.removeEventListener('end', handleEnded);
     player.removeEventListener('ended', handleEnded);
+    player.removeEventListener('media-ended', handleEnded);
     player.removeEventListener('time-update', handleTimeUpdate);
+    player.removeEventListener('timeupdate', handleTimeUpdate);
   };
 
   applyPendingHistoryPosition();
+}
+
+function maybeAdvancePlaylistFromProgress(event = null) {
+  if (!showPlaylistQueue.value || !playlistAutoplay.value || !nextPlaylistItem.value?.video_id) {
+    return;
+  }
+
+  const { currentTime, duration } = getPlaybackTiming(event);
+  if (currentTime == null || !duration || duration <= 0) {
+    return;
+  }
+
+  if (currentTime >= duration - 0.75) {
+    void playNextPlaylistVideo(true);
+  }
+}
+
+async function playPreviousPlaylistVideo() {
+  if (!showPlaylistQueue.value || !previousPlaylistItem.value?.video_id) {
+    return;
+  }
+
+  await router.push(playlistVideoRoute(previousPlaylistItem.value.video_id));
+}
+
+async function playNextPlaylistVideo(fromAutoplay = false) {
+  if (playlistAdvanceInProgress) {
+    return;
+  }
+  if (!showPlaylistQueue.value || !nextPlaylistItem.value?.video_id) {
+    return;
+  }
+  if (fromAutoplay && !playlistAutoplay.value) {
+    return;
+  }
+
+  playlistAdvanceInProgress = true;
+  try {
+    await router.push(playlistVideoRoute(nextPlaylistItem.value.video_id));
+  } finally {
+    window.setTimeout(() => {
+      playlistAdvanceInProgress = false;
+    }, 500);
+  }
 }
 
 function handleVisibilityChange() {
@@ -646,6 +958,10 @@ function formatCount(value) {
   return Number(value || 0).toLocaleString();
 }
 
+function videoTileStyle(itemVideo) {
+  return itemVideo?.has_thumbnail ? { backgroundImage: `url("${props.videoThumbnailUrl(itemVideo.id)}")` } : {};
+}
+
 async function maybeRegisterView() {
   if (!video.value || video.value.status !== 'ready' || lastRegisteredViewVideoId === video.value.id) {
     return;
@@ -685,16 +1001,40 @@ onUnmounted(() => {
   saveWatchHistoryProgress(true);
   detachMediaHistoryTracking();
   clearHistorySaveTimer();
+  stopPlaylistProgressPolling();
   stopProcessingPolling();
   document.removeEventListener('visibilitychange', handleVisibilityChange);
   window.removeEventListener('pagehide', handlePageHide);
 });
 watch(() => route.params.videoId, loadCurrentVideo);
+watch(() => route.params.videoId, () => {
+  playlistAdvanceInProgress = false;
+  lastKnownPlaybackDuration = null;
+});
+watch(() => [route.query.channelId, route.query.playlistId], () => {
+  loadCurrentVideo(false);
+});
+watch(playlistAutoplay, (value) => {
+  localStorage.setItem('basicvids_playlist_autoplay', value ? '1' : '0');
+  syncPlaylistProgressPolling();
+});
+watch(showPlaylistQueue, (visible) => {
+  syncPlaylistProgressPolling();
+  if (!visible || !video.value?.id) {
+    return;
+  }
+  window.setTimeout(() => {
+    document
+      .querySelector(`[data-playlist-video-id="${CSS.escape(video.value.id)}"]`)
+      ?.scrollIntoView({ block: 'nearest' });
+  }, 0);
+});
 watch(() => [video.value?.id, video.value?.status], ([videoId, status]) => {
   if (videoId && status === 'ready') {
     maybeRegisterView();
     restoreWatchHistory();
     startHistorySync();
+    syncPlaylistProgressPolling();
     window.setTimeout(() => {
       attachMediaHistoryTracking();
     }, 0);
@@ -705,6 +1045,7 @@ watch(() => [video.value?.id, video.value?.status], ([videoId, status]) => {
     restoredHistoryVideoId = null;
     pendingHistoryPosition = null;
     clearHistorySaveTimer();
+    stopPlaylistProgressPolling();
     detachMediaHistoryTracking();
   }
   resetSelectedQuality();
@@ -715,4 +1056,5 @@ watch(activePlayerSource, () => {
     applyPendingHistoryPosition();
   }, 0);
 });
+watch(nextPlaylistItem, syncPlaylistProgressPolling);
 </script>

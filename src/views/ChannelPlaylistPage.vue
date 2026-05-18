@@ -18,7 +18,7 @@
       <ul v-else class="video-list">
         <li v-for="item in items" :key="item.id" class="video-item">
           <article class="video-card">
-            <RouterLink v-if="item.video" class="video-card-link" :to="`/videos/${item.video_id}`">
+            <RouterLink v-if="item.video" class="video-card-link" :to="playlistVideoRoute(item.video_id)">
               <div class="video-tile" :class="{ fallback: !item.video.has_thumbnail }" :style="videoTileStyle(item.video)">
                 <div v-if="!item.video.has_thumbnail" class="video-tile-initial">
                   {{ getInitial(item.video.title || item.video.original_filename) }}
@@ -69,6 +69,16 @@ async function loadPage() {
 
 function videoTileStyle(video) {
   return video?.has_thumbnail ? { backgroundImage: `url("${props.videoThumbnailUrl(video.id)}")` } : {};
+}
+
+function playlistVideoRoute(videoId) {
+  return {
+    path: `/videos/${videoId}`,
+    query: {
+      channelId: channelId.value,
+      playlistId: playlistId.value,
+    },
+  };
 }
 
 onMounted(loadPage);
