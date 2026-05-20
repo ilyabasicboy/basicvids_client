@@ -1017,14 +1017,14 @@ async function removeVideoFromChannelPlaylist(channelId, playlistId, videoId) {
   return api.removeVideoFromChannelPlaylist(channelId, playlistId, videoId);
 }
 
-async function loadComments(videoId) {
-  return api.listComments(videoId);
+async function loadComments(videoId, options = {}) {
+  return api.listComments(videoId, options);
 }
 
-async function createComment(videoId, text) {
+async function createComment(videoId, text, parentId = null) {
   try {
-    const comment = await api.createComment(videoId, text);
-    setMessage('Comment added.', 'success');
+    const comment = await api.createComment(videoId, text, parentId);
+    setMessage(parentId ? 'Reply added.' : 'Comment added.', 'success');
     return comment;
   } catch (error) {
     setMessage(error.message, 'error');

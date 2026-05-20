@@ -228,9 +228,13 @@
       <div class="panel-heading inline">
         <div>
           <p class="eyebrow">Comments</p>
-          <h2>{{ comments.length }} comments</h2>
+          <h2>{{ commentsCount }} comments</h2>
         </div>
-        <button type="button" class="ghost-button" @click="loadCurrentComments">Refresh</button>
+        <div class="form-actions">
+          <button type="button" class="ghost-button" @click="loadCurrentComments(commentsPage)">
+            Refresh
+          </button>
+        </div>
       </div>
 
       <form v-if="isAuthenticated" class="comment-form" @submit.prevent="submitComment">
@@ -247,22 +251,121 @@
       </div>
 
       <div v-if="isLoadingComments" class="empty-state">Loading comments...</div>
-      <div v-else-if="comments.length === 0" class="empty-state">No comments yet.</div>
+      <div v-else-if="commentsCount === 0" class="empty-state">No comments yet.</div>
       <ul v-else class="comment-list">
-        <li v-for="comment in comments" :key="comment.id" class="comment-item">
-          <div>
-            <strong class="user-name-line">
-              <UserAvatar :user-id="comment.author_id" :label="commentAuthorLabel(comment)" :avatar-url="avatarUrl" />
-              <span>{{ commentAuthorLabel(comment) }}</span>
-            </strong>
-            <small>{{ formatDate(comment.created_at) }}</small>
-          </div>
-          <p>{{ comment.text }}</p>
-          <button v-if="canDeleteComment(comment)" class="danger-button" type="button" @click="removeComment(comment)">
-            Delete
-          </button>
+        <li v-for="comment in commentTree" :key="comment.id" class="comment-item">
+          <article class="comment-card">
+            <div>
+              <strong class="user-name-line">
+                <UserAvatar :user-id="comment.author_id" :label="commentAuthorLabel(comment)" :avatar-url="avatarUrl" />
+                <span>{{ commentAuthorLabel(comment) }}</span>
+              </strong>
+              <small>{{ formatDate(comment.created_at) }}</small>
+            </div>
+            <p>{{ comment.text }}</p>
+            <div class="comment-actions">
+              <button v-if="isAuthenticated" class="ghost-button compact-button" type="button" @click="startReply(comment)">
+                Reply
+              </button>
+              <button v-if="canDeleteComment(comment)" class="danger-button" type="button" @click="removeComment(comment)">
+                Delete
+              </button>
+            </div>
+            <form
+              v-if="replyingToCommentId === comment.id"
+              class="comment-form reply-form"
+              @submit.prevent="submitReply(comment)"
+            >
+              <label>
+                <span>Reply to {{ commentAuthorLabel(comment) }}</span>
+                <textarea v-model.trim="replyText" rows="3" required></textarea>
+              </label>
+              <div class="form-actions">
+                <button class="primary-button" type="submit" :disabled="isCreatingComment || !replyText">
+                  {{ isCreatingComment ? 'Posting...' : 'Post reply' }}
+                </button>
+                <button class="ghost-button" type="button" :disabled="isCreatingComment" @click="cancelReply">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </article>
+
+          <section v-if="comment.replies.length > 0" class="comment-replies-accordion">
+            <button
+              type="button"
+              class="comment-replies-accordion-trigger"
+              :aria-expanded="String(areRepliesVisible(comment.id))"
+              :aria-controls="`comment-replies-${comment.id}`"
+              @click="toggleReplies(comment.id)"
+            >
+              <span class="comment-replies-chevron" :class="{ expanded: areRepliesVisible(comment.id) }">›</span>
+              <span>{{ areRepliesVisible(comment.id) ? 'Hide replies' : 'Show replies' }}</span>
+              <strong>{{ comment.replies.length }}</strong>
+            </button>
+            <div
+              v-if="areRepliesVisible(comment.id)"
+              :id="`comment-replies-${comment.id}`"
+              class="comment-replies-accordion-panel"
+            >
+              <ul class="comment-replies">
+                <li v-for="reply in comment.replies" :key="reply.id" class="comment-item reply">
+                  <article class="comment-card">
+                    <div>
+                      <strong class="user-name-line">
+                        <UserAvatar :user-id="reply.author_id" :label="commentAuthorLabel(reply)" :avatar-url="avatarUrl" />
+                        <span>{{ commentAuthorLabel(reply) }}</span>
+                      </strong>
+                      <small>{{ formatDate(reply.created_at) }}</small>
+                    </div>
+                    <p>{{ reply.text }}</p>
+                    <div class="comment-actions">
+                      <button v-if="canDeleteComment(reply)" class="danger-button" type="button" @click="removeComment(reply)">
+                        Delete
+                      </button>
+                    </div>
+                  </article>
+                </li>
+              </ul>
+            </div>
+          </section>
         </li>
       </ul>
+      <nav v-if="commentsCount > commentsPageSize" class="pagination comments-pagination" aria-label="Comments pages">
+        <button
+          type="button"
+          class="ghost-button pagination-arrow"
+          aria-label="Previous comments page"
+          :disabled="isLoadingComments || commentsPage <= 1"
+          @click="loadCommentsPage(commentsPage - 1)"
+        >
+          ←
+        </button>
+        <div class="pagination-pages" aria-label="Comment page numbers">
+          <button
+            v-for="page in commentsTotalPages"
+            :key="page"
+            type="button"
+            class="pagination-page"
+            :class="{ active: page === commentsPage }"
+            :aria-current="page === commentsPage ? 'page' : undefined"
+            :disabled="isLoadingComments || page === commentsPage"
+            @click="loadCommentsPage(page)"
+          >
+            {{ page }}
+          </button>
+        </div>
+        <button
+          type="button"
+          class="ghost-button pagination-arrow"
+          aria-label="Next comments page"
+          :disabled="isLoadingComments || commentsPage >= commentsTotalPages"
+          @click="loadCommentsPage(commentsPage + 1)"
+        >
+          →
+        </button>
+        <span class="pagination-range">{{ commentsPage }} of {{ commentsTotalPages }}</span>
+      </nav>
     </article>
   </section>
 </template>
@@ -304,6 +407,9 @@ const video = ref(null);
 const videoChannel = ref(null);
 const playlistContext = ref(null);
 const comments = ref([]);
+const commentsCount = ref(0);
+const commentsPage = ref(1);
+const commentsPageSize = 1;
 const isLoading = ref(false);
 const isLoadingComments = ref(false);
 const isCreatingComment = ref(false);
@@ -312,6 +418,9 @@ const isUpdatingFavorite = ref(false);
 const errorMessage = ref('');
 const isEditing = ref(false);
 const commentText = ref('');
+const replyText = ref('');
+const replyingToCommentId = ref(null);
+const visibleRepliesCommentIds = ref(new Set());
 const pendingDeleteVideo = ref(null);
 const mediaPlayerElement = ref(null);
 let processingPollTimerId = null;
@@ -330,6 +439,29 @@ const playlistAutoplay = ref(localStorage.getItem('basicvids_playlist_autoplay')
 const videoTitle = computed(() => video.value?.title || video.value?.original_filename || 'Video');
 const canEdit = computed(() => Boolean(video.value && props.currentUser?.id === video.value.author_id));
 const currentReaction = computed(() => video.value?.user_reaction || null);
+const commentTree = computed(() => {
+  const rootComments = [];
+  const repliesByParentId = new Map();
+  const sortByCreatedAtAsc = (left, right) => new Date(left.created_at).getTime() - new Date(right.created_at).getTime();
+  const sortByCreatedAtDesc = (left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime();
+
+  for (const comment of comments.value) {
+    if (comment.parent_id) {
+      const replies = repliesByParentId.get(comment.parent_id) || [];
+      replies.push(comment);
+      repliesByParentId.set(comment.parent_id, replies);
+    } else {
+      rootComments.push(comment);
+    }
+  }
+
+  return rootComments
+    .sort(sortByCreatedAtDesc)
+    .map((comment) => ({
+      ...comment,
+      replies: [...(repliesByParentId.get(comment.id) || [])].sort(sortByCreatedAtAsc),
+    }));
+});
 const sortedQualities = computed(() => [...(video.value?.qualities || [])].sort((left, right) => right.height - left.height));
 const showFallbackQualitySelect = computed(() => !video.value?.has_hls && sortedQualities.value.length > 1);
 const posterUrl = computed(() => (video.value ? props.videoThumbnailUrl(video.value.id) : ''));
@@ -366,6 +498,7 @@ const previousPlaylistItem = computed(() => (
 const nextPlaylistItem = computed(() => (
   currentPlaylistIndex.value >= 0 ? playlistItems.value[currentPlaylistIndex.value + 1] || null : null
 ));
+const commentsTotalPages = computed(() => Math.max(1, Math.ceil(commentsCount.value / commentsPageSize)));
 const authorLabel = computed(() => {
   if (!video.value) {
     return 'Unknown author';
@@ -504,20 +637,32 @@ function detachMediaHistoryTracking() {
   trackedPlayerElement = null;
 }
 
-async function loadCurrentComments() {
+async function loadCurrentComments(page = commentsPage.value) {
   if (!route.params.videoId) {
     return;
   }
 
+  const nextPage = Math.min(Math.max(page, 1), commentsTotalPages.value);
   isLoadingComments.value = true;
   try {
-    const response = await props.loadComments(route.params.videoId);
+    const response = await props.loadComments(route.params.videoId, {
+      offset: (nextPage - 1) * commentsPageSize,
+      limit: commentsPageSize,
+    });
     comments.value = response.comments || [];
+    commentsCount.value = response.count || 0;
+    commentsPage.value = Math.min(nextPage, Math.max(1, Math.ceil((response.count || 0) / commentsPageSize)));
+    cancelReply();
   } catch (error) {
     comments.value = [];
+    commentsCount.value = 0;
   } finally {
     isLoadingComments.value = false;
   }
+}
+
+function loadCommentsPage(page) {
+  loadCurrentComments(page);
 }
 
 function resetForm() {
@@ -558,9 +703,53 @@ async function submitComment() {
 
   isCreatingComment.value = true;
   try {
-    const comment = await props.createComment(video.value.id, commentText.value);
-    comments.value = [comment, ...comments.value];
+    await props.createComment(video.value.id, commentText.value);
     commentText.value = '';
+    await loadCurrentComments(1);
+  } finally {
+    isCreatingComment.value = false;
+  }
+}
+
+function startReply(comment) {
+  replyingToCommentId.value = comment.id;
+  replyText.value = '';
+}
+
+function areRepliesVisible(commentId) {
+  return visibleRepliesCommentIds.value.has(commentId);
+}
+
+function showReplies(commentId) {
+  visibleRepliesCommentIds.value = new Set([...visibleRepliesCommentIds.value, commentId]);
+}
+
+function toggleReplies(commentId) {
+  const nextIds = new Set(visibleRepliesCommentIds.value);
+  if (nextIds.has(commentId)) {
+    nextIds.delete(commentId);
+  } else {
+    nextIds.add(commentId);
+  }
+  visibleRepliesCommentIds.value = nextIds;
+}
+
+function cancelReply() {
+  replyingToCommentId.value = null;
+  replyText.value = '';
+}
+
+async function submitReply(comment) {
+  if (!replyText.value) {
+    return;
+  }
+
+  isCreatingComment.value = true;
+  try {
+    const reply = await props.createComment(video.value.id, replyText.value, comment.id);
+    comments.value = [...comments.value, reply];
+    showReplies(comment.id);
+    cancelReply();
   } finally {
     isCreatingComment.value = false;
   }
@@ -950,7 +1139,28 @@ async function toggleCurrentVideoFavorite() {
 
 async function removeComment(comment) {
   await props.deleteComment(comment.id);
-  comments.value = comments.value.filter((item) => item.id !== comment.id);
+  if (!comment.parent_id) {
+    const nextCount = Math.max(0, commentsCount.value - 1);
+    const nextPage = Math.min(commentsPage.value, Math.max(1, Math.ceil(nextCount / commentsPageSize)));
+    await loadCurrentComments(nextPage);
+    return;
+  }
+
+  const removedIds = new Set([comment.id]);
+  for (const item of comments.value) {
+    if (item.parent_id === comment.id) {
+      removedIds.add(item.id);
+    }
+  }
+  comments.value = comments.value.filter((item) => !removedIds.has(item.id));
+  if (removedIds.has(replyingToCommentId.value)) {
+    cancelReply();
+  }
+  const nextVisibleReplyIds = new Set(visibleRepliesCommentIds.value);
+  for (const removedId of removedIds) {
+    nextVisibleReplyIds.delete(removedId);
+  }
+  visibleRepliesCommentIds.value = nextVisibleReplyIds;
 }
 
 function closeDeleteModal() {

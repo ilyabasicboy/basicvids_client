@@ -1376,6 +1376,13 @@ h2 {
   background: #243b36;
 }
 
+.pagination-arrow {
+  min-width: 42px;
+  padding-inline: 12px;
+  font-size: 1.15rem;
+  line-height: 1;
+}
+
 .pagination-range {
   flex-basis: 100%;
   text-align: center;
@@ -2081,7 +2088,7 @@ a.video-category-pill:focus-visible {
 
 .comment-list {
   display: grid;
-  gap: 12px;
+  gap: 14px;
   padding: 0;
   margin: 0;
   list-style: none;
@@ -2089,30 +2096,122 @@ a.video-category-pill:focus-visible {
 
 .comment-item {
   display: grid;
+  gap: 10px;
+}
+
+.comment-card {
+  display: grid;
   gap: 8px;
   border: 1px solid #e2e7e9;
   border-radius: 8px;
   padding: 12px;
 }
 
-.comment-item strong,
-.comment-item small {
+.comment-card strong,
+.comment-card small {
   display: block;
   overflow-wrap: anywhere;
 }
 
-.comment-item small {
+.comment-card small {
   color: #66625c;
 }
 
-.comment-item p {
+.comment-card p {
   margin: 0;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
 
-.comment-item .danger-button {
-  justify-self: start;
+.comment-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.comment-actions .danger-button,
+.comment-actions .ghost-button {
+  min-height: 34px;
+}
+
+.compact-button {
+  padding: 6px 10px;
+}
+
+.comment-replies-accordion {
+  display: grid;
+  overflow: hidden;
+  border: 1px solid #e2e7e9;
+  border-radius: 10px;
+  background: #f8faf9;
+}
+
+.comment-replies-accordion-trigger {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 42px;
+  border: 0;
+  padding: 8px 12px;
+  color: #243b36;
+  background: transparent;
+  font-weight: 900;
+  text-align: left;
+}
+
+.comment-replies-accordion-trigger:hover,
+.comment-replies-accordion-trigger:focus-visible {
+  background: #eef3ef;
+}
+
+.comment-replies-accordion-trigger strong {
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  margin-left: auto;
+  border-radius: 999px;
+  color: #ffffff;
+  background: #243b36;
+  font-size: 0.76rem;
+  line-height: 1;
+}
+
+.comment-replies-chevron {
+  display: inline-block;
+  font-size: 1.3rem;
+  line-height: 1;
+  transition: transform 160ms ease;
+}
+
+.comment-replies-chevron.expanded {
+  transform: rotate(90deg);
+}
+
+.comment-replies-accordion-panel {
+  display: grid;
+  border-top: 1px solid #e2e7e9;
+  padding: 12px;
+}
+
+.comment-replies {
+  display: grid;
+  gap: 10px;
+  padding: 0 0 0 18px;
+  margin: 0;
+  border-left: 2px solid #e2e7e9;
+  list-style: none;
+}
+
+.comment-item.reply .comment-card {
+  background: #f8faf9;
+}
+
+.reply-form {
+  border-top: 1px solid #e2e7e9;
+  padding-top: 10px;
 }
 
 .empty-state {

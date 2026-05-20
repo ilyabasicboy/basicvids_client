@@ -178,8 +178,14 @@
       </div>
 
       <nav v-if="displayedVideos.length > 0 && videosCount > pageSize" class="pagination" aria-label="Videos pages">
-        <button type="button" class="ghost-button" :disabled="isLoadingVideos || currentPage <= 1" @click="goToPage(1)">
-          First
+        <button
+          type="button"
+          class="ghost-button pagination-arrow"
+          aria-label="Previous page"
+          :disabled="isLoadingVideos || currentPage <= 1"
+          @click="goToPage(currentPage - 1)"
+        >
+          ←
         </button>
         <div class="pagination-pages" aria-label="Page numbers">
           <button
@@ -195,8 +201,14 @@
             {{ page }}
           </button>
         </div>
-        <button type="button" class="ghost-button" :disabled="isLoadingVideos || currentPage >= totalPages" @click="goToPage(totalPages)">
-          Last
+        <button
+          type="button"
+          class="ghost-button pagination-arrow"
+          aria-label="Next page"
+          :disabled="isLoadingVideos || currentPage >= totalPages"
+          @click="goToPage(currentPage + 1)"
+        >
+          →
         </button>
         <span class="pagination-range">{{ pageStart }}-{{ pageEnd }} of {{ videosCount }}</span>
       </nav>

@@ -459,15 +459,19 @@ export const api = {
     });
   },
 
-  listComments(videoId) {
-    const params = new URLSearchParams({ video_id: videoId });
+  listComments(videoId, { offset = 0, limit = 20 } = {}) {
+    const params = new URLSearchParams({
+      video_id: videoId,
+      offset: String(offset),
+      limit: String(limit),
+    });
     return request(`/api/v1/comments/?${params.toString()}`);
   },
 
-  createComment(videoId, text) {
+  createComment(videoId, text, parentId = null) {
     return request('/api/v1/comments/', {
       method: 'POST',
-      body: JSON.stringify({ video_id: videoId, text }),
+      body: JSON.stringify({ video_id: videoId, text, parent_id: parentId }),
     });
   },
 
