@@ -23,6 +23,16 @@
               <p>{{ playlist.description || 'No description.' }}</p>
             </div>
           </RouterLink>
+          <button
+            type="button"
+            class="favorite-star-button"
+            :class="{ active: playlist.is_favorite }"
+            :disabled="favoritePlaylistIds.has(playlist.id)"
+            :aria-label="favoritePlaylistLabel(playlist)"
+            @click="togglePlaylistFavorite(playlist)"
+          >
+            ★
+          </button>
         </li>
       </ul>
     </article>
@@ -35,8 +45,11 @@ import { RouterLink, useRoute } from 'vue-router';
 
 const props = defineProps({
   currentUser: { type: Object, default: null },
+  isAuthenticated: { type: Boolean, default: false },
   loadChannel: { type: Function, required: true },
   loadChannelPlaylists: { type: Function, required: true },
+  loadFavoritePlaylistStatuses: { type: Function, required: true },
+  toggleFavoritePlaylist: { type: Function, required: true },
 });
 
 const route = useRoute();
@@ -44,6 +57,7 @@ const channelId = computed(() => route.params.channelId);
 const channel = ref(null);
 const playlists = ref([]);
 const isLoading = ref(false);
+const favoritePlaylistIds = ref(new Set());
 const canManage = computed(() => Boolean(channel.value?.owner_id === props.currentUser?.id));
 
 async function loadPage() {
@@ -51,10 +65,35 @@ async function loadPage() {
   try {
     channel.value = await props.loadChannel(channelId.value);
     const response = await props.loadChannelPlaylists(channelId.value);
-    playlists.value = response.playlists || [];
+    const playlistItems = response.playlists || [];
+    const favoriteStatuses = await props.loadFavoritePlaylistStatuses(playlistItems.map((playlist) => playlist.id));
+    playlists.value = playlistItems.map((playlist) => ({
+      ...playlist,
+      is_favorite: Boolean(favoriteStatuses[playlist.id]),
+    }));
   } finally {
     isLoading.value = false;
   }
+}
+
+async function togglePlaylistFavorite(playlist) {
+  if (favoritePlaylistIds.value.has(playlist.id)) {
+    return;
+  }
+
+  favoritePlaylistIds.value = new Set([...favoritePlaylistIds.value, playlist.id]);
+  try {
+    const nextValue = await props.toggleFavoritePlaylist(playlist, channelId.value);
+    playlist.is_favorite = nextValue;
+  } finally {
+    const nextIds = new Set(favoritePlaylistIds.value);
+    nextIds.delete(playlist.id);
+    favoritePlaylistIds.value = nextIds;
+  }
+}
+
+function favoritePlaylistLabel(playlist) {
+  return playlist.is_favorite ? `Remove ${playlist.title} from favorites` : `Save ${playlist.title}`;
 }
 
 onMounted(loadPage);

@@ -84,6 +84,17 @@
               </div>
             </RouterLink>
             <div v-else class="empty-state">Video unavailable</div>
+            <button
+              v-if="item.video"
+              type="button"
+              class="favorite-star-button"
+              :class="{ active: item.video.is_favorite }"
+              :disabled="favoriteVideoIds.has(item.video_id)"
+              :aria-label="favoriteVideoLabel(item.video)"
+              @click="toggleVideoFavorite(item.video)"
+            >
+              ★
+            </button>
             <button v-if="canManage" class="video-tile-delete" type="button" @click="removeVideo(item.video_id)">X</button>
           </article>
         </li>
@@ -106,6 +117,7 @@ const props = defineProps({
   unsubscribeFromChannel: { type: Function, required: true },
   getInitial: { type: Function, required: true },
   videoThumbnailUrl: { type: Function, required: true },
+  toggleFavoriteVideo: { type: Function, required: true },
 });
 
 const route = useRoute();
@@ -116,6 +128,7 @@ const appliedSearch = ref('');
 const isLoading = ref(false);
 const isLoadingVideos = ref(false);
 const errorMessage = ref('');
+const favoriteVideoIds = ref(new Set());
 const canManage = computed(() => Boolean(channel.value?.owner_id === props.currentUser?.id));
 const visibleItems = computed(() => {
   const query = appliedSearch.value.trim().toLowerCase();
@@ -176,6 +189,27 @@ async function toggleSubscription() {
     await props.subscribeToChannel(channel.value.id);
   }
   await loadCurrentChannel();
+}
+
+async function toggleVideoFavorite(video) {
+  if (favoriteVideoIds.value.has(video.id)) {
+    return;
+  }
+
+  favoriteVideoIds.value = new Set([...favoriteVideoIds.value, video.id]);
+  try {
+    const nextValue = await props.toggleFavoriteVideo(video);
+    video.is_favorite = nextValue;
+  } finally {
+    const nextIds = new Set(favoriteVideoIds.value);
+    nextIds.delete(video.id);
+    favoriteVideoIds.value = nextIds;
+  }
+}
+
+function favoriteVideoLabel(video) {
+  const title = video.title || video.original_filename;
+  return video.is_favorite ? `Remove ${title} from favorites` : `Save ${title}`;
 }
 
 function searchVideos() {

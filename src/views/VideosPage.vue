@@ -151,6 +151,16 @@
                 <span>{{ video.channel.name }}</span>
               </RouterLink>
               <button
+                type="button"
+                class="favorite-star-button"
+                :class="{ active: video.is_favorite }"
+                :disabled="favoriteVideoIds.has(video.id)"
+                :aria-label="favoriteVideoLabel(video)"
+                @click="toggleVideoFavorite(video)"
+              >
+                ★
+              </button>
+              <button
                 v-if="canDelete(video)"
                 class="video-tile-delete"
                 type="button"
@@ -233,6 +243,7 @@ const props = defineProps({
   getInitial: { type: Function, required: true },
   videoThumbnailUrl: { type: Function, required: true },
   avatarUrl: { type: Function, required: true },
+  toggleFavoriteVideo: { type: Function, required: true },
 });
 
 const emit = defineEmits(['delete-video', 'load-videos']);
@@ -250,6 +261,7 @@ const currentPage = ref(1);
 const displayedVideos = ref([...props.videos]);
 const pendingDeleteVideo = ref(null);
 const filtersOpen = ref(false);
+const favoriteVideoIds = ref(new Set());
 
 const totalPages = computed(() => Math.max(1, Math.ceil(props.videosCount / pageSize)));
 const pageStart = computed(() => (props.videosCount === 0 ? 0 : (currentPage.value - 1) * pageSize + 1));
@@ -350,6 +362,27 @@ function confirmDeleteVideo() {
     emit('delete-video', pendingDeleteVideo.value);
     closeDeleteModal();
   }
+}
+
+async function toggleVideoFavorite(video) {
+  if (favoriteVideoIds.value.has(video.id)) {
+    return;
+  }
+
+  favoriteVideoIds.value = new Set([...favoriteVideoIds.value, video.id]);
+  try {
+    const nextValue = await props.toggleFavoriteVideo(video);
+    video.is_favorite = nextValue;
+  } finally {
+    const nextIds = new Set(favoriteVideoIds.value);
+    nextIds.delete(video.id);
+    favoriteVideoIds.value = nextIds;
+  }
+}
+
+function favoriteVideoLabel(video) {
+  const title = video.title || video.original_filename;
+  return video.is_favorite ? `Remove ${title} from favorites` : `Save ${title}`;
 }
 
 function authorLabel(video) {

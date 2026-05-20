@@ -533,6 +533,81 @@ export const api = {
     });
   },
 
+  addFavoriteVideo(videoId) {
+    return request(`/api/v1/favorites/videos/${videoId}`, {
+      method: 'PUT',
+    });
+  },
+
+  listFavoriteVideos({ offset = 0, limit = 20 } = {}) {
+    const params = new URLSearchParams({
+      offset: String(offset),
+      limit: String(limit),
+    });
+    return request(`/api/v1/favorites/videos/?${params.toString()}`);
+  },
+
+  getFavoriteVideoStatus(videoId) {
+    return request(`/api/v1/favorites/videos/${videoId}`);
+  },
+
+  getFavoriteVideoStatuses(videoIds) {
+    return request('/api/v1/favorites/videos/statuses', {
+      method: 'POST',
+      body: JSON.stringify({ video_ids: videoIds }),
+    });
+  },
+
+  deleteFavoriteVideo(videoId) {
+    return request(`/api/v1/favorites/videos/${videoId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  clearFavoriteVideos() {
+    return request('/api/v1/favorites/videos/', {
+      method: 'DELETE',
+    });
+  },
+
+  addFavoritePlaylist(playlistId, channelId) {
+    return request(`/api/v1/favorites/playlists/${playlistId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ channel_id: channelId }),
+    });
+  },
+
+  listFavoritePlaylists({ offset = 0, limit = 20 } = {}) {
+    const params = new URLSearchParams({
+      offset: String(offset),
+      limit: String(limit),
+    });
+    return request(`/api/v1/favorites/playlists/?${params.toString()}`);
+  },
+
+  getFavoritePlaylistStatus(playlistId) {
+    return request(`/api/v1/favorites/playlists/${playlistId}`);
+  },
+
+  getFavoritePlaylistStatuses(playlistIds) {
+    return request('/api/v1/favorites/playlists/statuses', {
+      method: 'POST',
+      body: JSON.stringify({ playlist_ids: playlistIds }),
+    });
+  },
+
+  deleteFavoritePlaylist(playlistId) {
+    return request(`/api/v1/favorites/playlists/${playlistId}`, {
+      method: 'DELETE',
+    });
+  },
+
+  clearFavoritePlaylists() {
+    return request('/api/v1/favorites/playlists/', {
+      method: 'DELETE',
+    });
+  },
+
   videoUrl(videoId, quality = null) {
     const params = new URLSearchParams();
     if (quality) {

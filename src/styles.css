@@ -500,6 +500,7 @@ button {
 }
 
 .channel-card {
+  position: relative;
   display: grid;
   border: 1px solid #d7dee2;
   border-radius: 16px;
@@ -565,6 +566,54 @@ button {
   margin: 0;
   color: #66706b;
   font-size: 0.92rem;
+}
+
+.favorites-section {
+  display: grid;
+  gap: 14px;
+}
+
+.favorites-tabs {
+  display: inline-flex;
+  width: fit-content;
+  border: 1px solid #d7dee2;
+  border-radius: 999px;
+  padding: 4px;
+  background: #ffffff;
+}
+
+.favorites-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0 16px;
+  color: #4f5752;
+  background: transparent;
+  font-weight: 900;
+}
+
+.favorites-tab span {
+  display: grid;
+  place-items: center;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  color: #243b36;
+  background: #eef3ef;
+  font-size: 0.78rem;
+}
+
+.favorites-tab.active {
+  color: #ffffff;
+  background: #243b36;
+}
+
+.favorites-tab.active span {
+  color: #243b36;
+  background: #f6cf7a;
 }
 
 .panel-subcopy {
@@ -971,6 +1020,11 @@ h2 {
   justify-content: space-between;
   gap: 16px;
   align-items: center;
+}
+
+.panel-heading.compact {
+  margin-top: 8px;
+  padding-top: 8px;
 }
 
 .dropzone {
@@ -1603,6 +1657,50 @@ h2 {
   opacity: 1;
 }
 
+.favorite-star-button {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 999px;
+  padding: 0;
+  color: #ffffff;
+  background: rgba(10, 14, 16, 0.58);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.22);
+  backdrop-filter: blur(8px);
+  font-size: 1.05rem;
+  font-weight: 900;
+  line-height: 1;
+  transition: transform 160ms ease, background-color 160ms ease, color 160ms ease, opacity 160ms ease;
+}
+
+.channel-card .favorite-star-button {
+  top: 10px;
+  left: auto;
+  right: 10px;
+}
+
+.favorite-star-button:hover:not(:disabled),
+.favorite-star-button:focus-visible:not(:disabled) {
+  transform: translateY(-1px) scale(1.04);
+  background: rgba(23, 23, 23, 0.82);
+}
+
+.favorite-star-button.active,
+.save-button.active {
+  color: #f6c64f;
+}
+
+.favorite-star-button:disabled {
+  cursor: default;
+  opacity: 0.62;
+}
+
 .video-player-page {
   display: grid;
   gap: 18px;
@@ -1707,6 +1805,24 @@ h2 {
   border-color: #de335b;
   color: #de335b;
   background: #fff2f5;
+}
+
+.engagement-button.save-button.active {
+  border-color: #d9a72d;
+  color: #b98200;
+  background: #fff8df;
+}
+
+.playlist-save-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.playlist-save-button.active {
+  border-color: #d9a72d;
+  color: #b98200;
+  background: #fff8df;
 }
 
 .engagement-button:disabled {

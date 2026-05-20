@@ -80,6 +80,15 @@
         <div class="video-engagement-actions">
           <button
             type="button"
+            class="engagement-button save-button"
+            :class="{ active: video.is_favorite }"
+            :disabled="!isAuthenticated || isUpdatingFavorite"
+            @click="toggleCurrentVideoFavorite"
+          >
+            <span aria-hidden="true">★</span><span>Save</span>
+          </button>
+          <button
+            type="button"
             class="engagement-button"
             :class="{ active: currentReaction === 'like' }"
             :disabled="!isAuthenticated || isUpdatingReaction"
@@ -280,6 +289,7 @@ const props = defineProps({
   registerVideoView: { type: Function, required: true },
   saveVideoHistory: { type: Function, required: true },
   setVideoReaction: { type: Function, required: true },
+  toggleFavoriteVideo: { type: Function, required: true },
   videoThumbnailUrl: { type: Function, required: true },
   videoHlsUrl: { type: Function, required: true },
   videoUrl: { type: Function, required: true },
@@ -298,6 +308,7 @@ const isLoading = ref(false);
 const isLoadingComments = ref(false);
 const isCreatingComment = ref(false);
 const isUpdatingReaction = ref(false);
+const isUpdatingFavorite = ref(false);
 const errorMessage = ref('');
 const isEditing = ref(false);
 const commentText = ref('');
@@ -917,6 +928,23 @@ async function applyReaction(targetReaction) {
     };
   } finally {
     isUpdatingReaction.value = false;
+  }
+}
+
+async function toggleCurrentVideoFavorite() {
+  if (!video.value || isUpdatingFavorite.value) {
+    return;
+  }
+
+  isUpdatingFavorite.value = true;
+  try {
+    const nextValue = await props.toggleFavoriteVideo(video.value);
+    video.value = {
+      ...video.value,
+      is_favorite: nextValue,
+    };
+  } finally {
+    isUpdatingFavorite.value = false;
   }
 }
 

@@ -117,6 +117,9 @@
                 <RouterLink class="user-menu-link" to="/watch-history" @click="closeUserMenu">
                   Watch history
                 </RouterLink>
+                <RouterLink class="user-menu-link" to="/favorites" @click="closeUserMenu">
+                  Favorites
+                </RouterLink>
                 <RouterLink v-if="currentUser?.is_admin" class="user-menu-link" to="/categories" @click="closeUserMenu">
                   Manage categories
                 </RouterLink>
@@ -191,6 +194,11 @@
             :save-video-history="saveVideoHistory"
             :delete-video-history="deleteVideoHistory"
             :clear-watch-history="clearWatchHistory"
+            :load-favorite-videos="loadFavoriteVideos"
+            :load-favorite-playlists="loadFavoritePlaylists"
+            :toggle-favorite-video="toggleFavoriteVideo"
+            :toggle-favorite-playlist="toggleFavoritePlaylist"
+            :load-favorite-playlist-statuses="loadFavoritePlaylistStatuses"
             :list-channels="listChannels"
             :list-my-channels="listMyChannels"
             :load-channel="loadChannel"
@@ -399,6 +407,13 @@ const breadcrumbs = computed(() => {
     ];
   }
 
+  if (route.path === '/favorites') {
+    return [
+      { label: 'Home', to: '/videos' },
+      { label: 'Favorites', to: '/favorites' },
+    ];
+  }
+
   if (route.path === '/current-user') {
     return [
       { label: 'Home', to: '/videos' },
@@ -526,6 +541,13 @@ function mergeVideoChannel(video, channel) {
   };
 }
 
+function mergeVideoFavorite(video, isFavorite) {
+  return {
+    ...video,
+    is_favorite: Boolean(isFavorite),
+  };
+}
+
 async function attachEngagementToVideos(videoItems) {
   if (!Array.isArray(videoItems) || videoItems.length === 0) {
     return [];
@@ -551,6 +573,23 @@ async function attachChannelsToVideos(videoItems) {
     return videoItems.map((video) => mergeVideoChannel(video, channelByVideoId[video.id]));
   } catch {
     return videoItems.map((video) => mergeVideoChannel(video));
+  }
+}
+
+async function attachFavoritesToVideos(videoItems) {
+  if (!Array.isArray(videoItems) || videoItems.length === 0) {
+    return [];
+  }
+
+  if (!isAuthenticated.value) {
+    return videoItems.map((video) => mergeVideoFavorite(video, false));
+  }
+
+  try {
+    const response = await api.getFavoriteVideoStatuses(videoItems.map((video) => video.id));
+    return videoItems.map((video) => mergeVideoFavorite(video, response.favorites?.[video.id]));
+  } catch {
+    return videoItems.map((video) => mergeVideoFavorite(video, video.is_favorite));
   }
 }
 
@@ -591,7 +630,8 @@ async function loadVideos(options = {}) {
   try {
     const response = await api.listVideos(normalizedOptions);
     const videosWithEngagement = await attachEngagementToVideos(response.videos || []);
-    const hydratedVideos = await attachChannelsToVideos(videosWithEngagement);
+    const videosWithChannels = await attachChannelsToVideos(videosWithEngagement);
+    const hydratedVideos = await attachFavoritesToVideos(videosWithChannels);
     if (requestId !== videosRequestId) {
       return;
     }
@@ -658,7 +698,7 @@ async function loadVideo(videoId) {
     api.getVideo(videoId),
     api.getVideoEngagement(videoId).catch(() => null),
   ]);
-  const hydratedVideo = mergeVideoEngagement(video, engagement);
+  const [hydratedVideo] = await attachFavoritesToVideos([mergeVideoEngagement(video, engagement)]);
   const existingIndex = videos.value.findIndex((item) => item.id === video.id);
   if (existingIndex >= 0) {
     videos.value = videos.value.map((item) => (item.id === hydratedVideo.id ? hydratedVideo : item));
@@ -727,6 +767,97 @@ async function deleteVideoHistory(videoId) {
 
 async function clearWatchHistory() {
   return api.clearVideoHistory();
+}
+
+async function loadFavoriteVideos(options = {}) {
+  const response = await api.listFavoriteVideos(options);
+  const items = await Promise.all((response.items || []).map(async (item) => {
+    try {
+      const video = await loadVideo(item.video_id);
+      return { ...item, video: mergeVideoFavorite(video, true) };
+    } catch {
+      return { ...item, video: null };
+    }
+  }));
+  return {
+    items,
+    count: response.count || 0,
+  };
+}
+
+async function loadFavoritePlaylists(options = {}) {
+  const response = await api.listFavoritePlaylists(options);
+  const items = await Promise.all((response.items || []).map(async (item) => {
+    try {
+      const playlist = await loadChannelPlaylist(item.channel_id, item.playlist_id);
+      return { ...item, playlist: { ...playlist, is_favorite: true } };
+    } catch {
+      return { ...item, playlist: null };
+    }
+  }));
+  return {
+    items,
+    count: response.count || 0,
+  };
+}
+
+async function toggleFavoriteVideo(video) {
+  if (!isAuthenticated.value) {
+    setMessage('Sign in to save videos.', 'error');
+    throw new Error('Authentication required');
+  }
+
+  const videoId = typeof video === 'string' ? video : video?.id;
+  const nextValue = !Boolean(typeof video === 'string' ? false : video?.is_favorite);
+  try {
+    if (nextValue) {
+      await api.addFavoriteVideo(videoId);
+      setMessage('Video saved.', 'success');
+    } else {
+      await api.deleteFavoriteVideo(videoId);
+      setMessage('Video removed from favorites.', 'success');
+    }
+    videos.value = videos.value.map((item) => (item.id === videoId ? mergeVideoFavorite(item, nextValue) : item));
+    return nextValue;
+  } catch (error) {
+    setMessage(error.message, 'error');
+    throw error;
+  }
+}
+
+async function toggleFavoritePlaylist(playlist, channelId) {
+  if (!isAuthenticated.value) {
+    setMessage('Sign in to save playlists.', 'error');
+    throw new Error('Authentication required');
+  }
+
+  const playlistId = typeof playlist === 'string' ? playlist : playlist?.id;
+  const nextValue = !Boolean(typeof playlist === 'string' ? false : playlist?.is_favorite);
+  try {
+    if (nextValue) {
+      await api.addFavoritePlaylist(playlistId, channelId || playlist?.channel_id);
+      setMessage('Playlist saved.', 'success');
+    } else {
+      await api.deleteFavoritePlaylist(playlistId);
+      setMessage('Playlist removed from favorites.', 'success');
+    }
+    return nextValue;
+  } catch (error) {
+    setMessage(error.message, 'error');
+    throw error;
+  }
+}
+
+async function loadFavoritePlaylistStatuses(playlistIds) {
+  if (!isAuthenticated.value || !playlistIds.length) {
+    return {};
+  }
+  try {
+    const response = await api.getFavoritePlaylistStatuses(playlistIds);
+    return response.favorites || {};
+  } catch {
+    return {};
+  }
 }
 
 async function listMyChannels() {

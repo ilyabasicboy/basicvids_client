@@ -10,6 +10,7 @@ import ChannelPlaylistsPage from './views/ChannelPlaylistsPage.vue';
 import ChannelUploadVideoPage from './views/ChannelUploadVideoPage.vue';
 import CreateAccountPage from './views/CreateAccountPage.vue';
 import CurrentUserPage from './views/CurrentUserPage.vue';
+import FavoritesPage from './views/FavoritesPage.vue';
 import LoginPage from './views/LoginPage.vue';
 import UserChannelsPage from './views/UserChannelsPage.vue';
 import WatchHistoryPage from './views/WatchHistoryPage.vue';
@@ -38,6 +39,7 @@ export const router = createRouter({
     { path: '/channels/:channelId/playlists/:playlistId/edit', name: 'edit-channel-playlist', component: ChannelPlaylistFormPage },
     { path: '/user-videos', name: 'user-videos', component: UserVideosPage },
     { path: '/watch-history', name: 'watch-history', component: WatchHistoryPage },
+    { path: '/favorites', name: 'favorites', component: FavoritesPage },
     { path: '/auth', name: 'auth', component: LoginPage },
     { path: '/create-account', name: 'create-account', component: CreateAccountPage },
     { path: '/confirm-email', name: 'confirm-email', component: ConfirmEmailPage },
