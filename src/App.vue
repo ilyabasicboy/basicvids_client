@@ -166,6 +166,7 @@
             :current-user="currentUser"
             :current-user-text="currentUserText"
             :avatar-url="avatarUrl"
+            :channel-avatar-url="channelAvatarUrl"
             :format-bytes="formatBytes"
             :get-initial="getInitial"
             :change-video="changeVideo"
@@ -206,6 +207,8 @@
             :create-channel="createChannel"
             :change-channel="changeChannel"
             :delete-channel="deleteChannel"
+            :upload-channel-avatar="uploadChannelAvatar"
+            :delete-channel-avatar="deleteChannelAvatar"
             :subscribe-to-channel="subscribeToChannel"
             :unsubscribe-from-channel="unsubscribeFromChannel"
             :load-channel-videos="loadChannelVideos"
@@ -277,6 +280,7 @@ const isDeletingUser = ref(false);
 const isSigningIn = ref(false);
 const currentUser = ref(null);
 const avatarVersion = ref(Date.now());
+const channelAvatarVersion = ref(Date.now());
 const authToken = ref(localStorage.getItem('basicvids_access_token'));
 const pendingConfirmCredentials = ref(null);
 const message = ref('');
@@ -918,6 +922,29 @@ async function deleteChannel(channelId) {
   }
 }
 
+async function uploadChannelAvatar(channelId, avatar) {
+  try {
+    const result = await api.uploadChannelAvatar(channelId, avatar);
+    channelAvatarVersion.value = Date.now();
+    setMessage('Channel avatar updated.', 'success');
+    return result;
+  } catch (error) {
+    setMessage(error.message, 'error');
+    throw error;
+  }
+}
+
+async function deleteChannelAvatar(channelId) {
+  try {
+    await api.deleteChannelAvatar(channelId);
+    channelAvatarVersion.value = Date.now();
+    setMessage('Channel avatar deleted.', 'success');
+  } catch (error) {
+    setMessage(error.message, 'error');
+    throw error;
+  }
+}
+
 async function subscribeToChannel(channelId) {
   try {
     const subscription = await api.subscribeToChannel(channelId);
@@ -1446,6 +1473,10 @@ function videoThumbnailUrl(videoId) {
 
 function avatarUrl(userId) {
   return `${api.userAvatarUrl(userId)}?v=${avatarVersion.value}`;
+}
+
+function channelAvatarUrl(channelId) {
+  return `${api.channelAvatarUrl(channelId)}?v=${channelAvatarVersion.value}`;
 }
 
 function normalizeSearchValue(value) {

@@ -47,7 +47,12 @@
         <ul class="channel-grid">
           <li v-for="channel in channels" :key="channel.id" class="channel-card">
             <RouterLink class="channel-card-link" :to="`/channels/${channel.id}`">
-              <div class="channel-card-mark">{{ getInitial(channel.name) }}</div>
+              <ChannelAvatar
+                class="channel-card-mark"
+                :channel-id="channel.id"
+                :label="channel.name"
+                :channel-avatar-url="channelAvatarUrl"
+              />
               <div class="channel-card-body">
                 <strong>{{ channel.name }}</strong>
                 <small>@{{ channel.slug }}</small>
@@ -70,10 +75,11 @@
 <script setup>
 import { onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
+import ChannelAvatar from '../components/ChannelAvatar.vue';
 
 const props = defineProps({
   listChannels: { type: Function, required: true },
-  getInitial: { type: Function, required: true },
+  channelAvatarUrl: { type: Function, required: true },
 });
 
 const channels = ref([]);

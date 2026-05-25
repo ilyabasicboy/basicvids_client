@@ -147,7 +147,12 @@
                 class="video-card-channel-link"
                 :to="`/channels/${video.channel.id}`"
               >
-                <span class="video-card-channel-mark">{{ getInitial(video.channel.name) }}</span>
+                <ChannelAvatar
+                  class="video-card-channel-mark"
+                  :channel-id="video.channel.id"
+                  :label="video.channel.name"
+                  :channel-avatar-url="channelAvatarUrl"
+                />
                 <span>{{ video.channel.name }}</span>
               </RouterLink>
               <button
@@ -242,6 +247,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 import { useRoute, useRouter } from 'vue-router';
+import ChannelAvatar from '../components/ChannelAvatar.vue';
 import UserAvatar from '../components/UserAvatar.vue';
 
 const props = defineProps({
@@ -255,6 +261,7 @@ const props = defineProps({
   getInitial: { type: Function, required: true },
   videoThumbnailUrl: { type: Function, required: true },
   avatarUrl: { type: Function, required: true },
+  channelAvatarUrl: { type: Function, required: true },
   toggleFavoriteVideo: { type: Function, required: true },
 });
 

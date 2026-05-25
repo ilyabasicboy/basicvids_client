@@ -61,7 +61,12 @@
           class="video-channel-pill"
           :to="`/channels/${videoChannel.id}`"
         >
-          <span class="video-channel-mark">{{ getInitial(videoChannel.name) }}</span>
+          <ChannelAvatar
+            class="video-channel-mark"
+            :channel-id="videoChannel.id"
+            :label="videoChannel.name"
+            :channel-avatar-url="channelAvatarUrl"
+          />
           <span>{{ videoChannel.name }}</span>
         </RouterLink>
         <RouterLink
@@ -373,6 +378,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
+import ChannelAvatar from '../components/ChannelAvatar.vue';
 import UserAvatar from '../components/UserAvatar.vue';
 
 const props = defineProps({
@@ -397,6 +403,7 @@ const props = defineProps({
   videoHlsUrl: { type: Function, required: true },
   videoUrl: { type: Function, required: true },
   avatarUrl: { type: Function, required: true },
+  channelAvatarUrl: { type: Function, required: true },
 });
 
 const emit = defineEmits(['delete-video']);

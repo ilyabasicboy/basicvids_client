@@ -5,7 +5,12 @@
       <div v-else-if="errorMessage" class="empty-state">{{ errorMessage }}</div>
       <template v-else-if="channel">
         <div class="channel-hero">
-          <div class="channel-hero-mark">{{ getInitial(channel.name) }}</div>
+          <ChannelAvatar
+            class="channel-hero-mark"
+            :channel-id="channel.id"
+            :label="channel.name"
+            :channel-avatar-url="channelAvatarUrl"
+          />
           <div>
             <p class="eyebrow">Channel</p>
             <h2>{{ channel.name }}</h2>
@@ -106,6 +111,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
+import ChannelAvatar from '../components/ChannelAvatar.vue';
 
 const props = defineProps({
   currentUser: { type: Object, default: null },
@@ -116,6 +122,7 @@ const props = defineProps({
   subscribeToChannel: { type: Function, required: true },
   unsubscribeFromChannel: { type: Function, required: true },
   getInitial: { type: Function, required: true },
+  channelAvatarUrl: { type: Function, required: true },
   videoThumbnailUrl: { type: Function, required: true },
   toggleFavoriteVideo: { type: Function, required: true },
 });

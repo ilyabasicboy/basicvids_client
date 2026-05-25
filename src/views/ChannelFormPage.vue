@@ -18,9 +18,24 @@
           <span>Description</span>
           <textarea v-model.trim="form.description" rows="5"></textarea>
         </label>
+        <label class="avatar-upload-field channel-avatar-field">
+          <span>Avatar</span>
+          <ChannelAvatar
+            v-if="isEditMode"
+            class="channel-form-avatar"
+            :channel-id="String(route.params.channelId)"
+            :label="form.name || 'Channel'"
+            :channel-avatar-url="channelAvatarUrl"
+          />
+          <input type="file" accept="image/*" @change="onAvatarSelect" />
+          <small>{{ form.avatar ? form.avatar.name : (isEditMode ? 'Keep current avatar.' : 'Choose a channel image.') }}</small>
+        </label>
         <div class="form-actions">
           <button class="primary-button" type="submit" :disabled="isSaving || !form.name">
             {{ isSaving ? 'Saving...' : (isEditMode ? 'Save channel' : 'Create channel') }}
+          </button>
+          <button v-if="isEditMode" class="ghost-button" type="button" :disabled="isDeletingAvatar" @click="removeAvatar">
+            {{ isDeletingAvatar ? 'Removing avatar...' : 'Remove avatar' }}
           </button>
           <button v-if="isEditMode" class="danger-button" type="button" :disabled="isDeleting" @click="removeChannel">
             {{ isDeleting ? 'Deleting...' : 'Delete channel' }}
@@ -39,6 +54,7 @@
 <script setup>
 import { computed, onMounted, reactive, ref } from 'vue';
 import { RouterLink, useRoute, useRouter } from 'vue-router';
+import ChannelAvatar from '../components/ChannelAvatar.vue';
 
 const props = defineProps({
   isAuthenticated: { type: Boolean, default: false },
@@ -46,14 +62,18 @@ const props = defineProps({
   createChannel: { type: Function, required: true },
   changeChannel: { type: Function, required: true },
   deleteChannel: { type: Function, required: true },
+  uploadChannelAvatar: { type: Function, required: true },
+  deleteChannelAvatar: { type: Function, required: true },
+  channelAvatarUrl: { type: Function, required: true },
 });
 
 const route = useRoute();
 const router = useRouter();
 const isSaving = ref(false);
 const isDeleting = ref(false);
+const isDeletingAvatar = ref(false);
 const slugEdited = ref(false);
-const form = reactive({ name: '', slug: '', description: '' });
+const form = reactive({ name: '', slug: '', description: '', avatar: null });
 const isEditMode = computed(() => Boolean(route.params.channelId));
 
 function slugify(value) {
@@ -76,6 +96,10 @@ function markSlugEdited() {
   form.slug = slugify(form.slug);
 }
 
+function onAvatarSelect(event) {
+  form.avatar = event.target.files?.[0] || null;
+}
+
 async function loadForm() {
   if (!isEditMode.value) return;
   const channel = await props.loadChannel(route.params.channelId);
@@ -96,9 +120,22 @@ async function submit() {
     const saved = isEditMode.value
       ? await props.changeChannel(route.params.channelId, payload)
       : await props.createChannel(payload);
+    if (form.avatar) {
+      await props.uploadChannelAvatar(saved.id, form.avatar);
+    }
     await router.push(`/channels/${saved.id}`);
   } finally {
     isSaving.value = false;
+  }
+}
+
+async function removeAvatar() {
+  isDeletingAvatar.value = true;
+  try {
+    await props.deleteChannelAvatar(route.params.channelId);
+    form.avatar = null;
+  } finally {
+    isDeletingAvatar.value = false;
   }
 }
 

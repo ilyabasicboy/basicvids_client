@@ -369,6 +369,23 @@ export const api = {
     });
   },
 
+  uploadChannelAvatar(channelId, avatar) {
+    const formData = new FormData();
+    formData.append('avatar', avatar);
+
+    return request(`/api/v1/channels/${channelId}/avatar/`, {
+      method: 'PUT',
+      body: formData,
+      headers: {},
+    });
+  },
+
+  deleteChannelAvatar(channelId) {
+    return request(`/api/v1/channels/${channelId}/avatar/`, {
+      method: 'DELETE',
+    });
+  },
+
   listMyChannelSubscriptions() {
     return request('/api/v1/channels/subscriptions/me/');
   },
@@ -632,5 +649,9 @@ export const api = {
 
   userAvatarUrl(userId) {
     return `${API_BASE_URL}/api/v1/avatars/users/${userId}/image/`;
+  },
+
+  channelAvatarUrl(channelId) {
+    return `${API_BASE_URL}/api/v1/channels/${channelId}/avatar/image/`;
   },
 };
