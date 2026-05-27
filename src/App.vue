@@ -202,6 +202,7 @@
             :load-favorite-playlist-statuses="loadFavoritePlaylistStatuses"
             :list-channels="listChannels"
             :list-my-channels="listMyChannels"
+            :list-subscribed-channels="listSubscribedChannels"
             :load-channel="loadChannel"
             :load-video-channel="loadVideoChannel"
             :create-channel="createChannel"
@@ -866,6 +867,22 @@ async function loadFavoritePlaylistStatuses(playlistIds) {
 
 async function listMyChannels() {
   return api.listMyChannels();
+}
+
+async function listSubscribedChannels() {
+  const response = await api.listMyChannelSubscriptions();
+  const subscriptions = response.subscriptions || [];
+  const channels = await Promise.all(
+    subscriptions.map(async (subscription) => {
+      try {
+        const channel = await api.getChannel(subscription.channel_id);
+        return { ...channel, is_subscribed: true };
+      } catch {
+        return null;
+      }
+    }),
+  );
+  return channels.filter(Boolean);
 }
 
 async function listChannels(options = {}) {
