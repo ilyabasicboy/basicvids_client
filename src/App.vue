@@ -1268,7 +1268,7 @@ async function handleLogout() {
     // local logout still wins if the server-side session is already gone
   }
   logout();
-  await router.push('/videos');
+  await router.push('/auth');
 }
 
 function onFileSelect(event) {

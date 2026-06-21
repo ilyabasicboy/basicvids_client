@@ -1,6 +1,8 @@
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 
+const proxyTarget = 'http://127.0.0.1:8080';
+
 export default defineConfig({
   plugins: [
     vue({
@@ -15,10 +17,10 @@ export default defineConfig({
     port: 5173,
     strictPort: false,
     proxy: {
-      '/api': 'http://localhost:8080',
-      '/health': 'http://localhost:8080',
-      '/auth': 'http://localhost:8080',
-      '/storage': 'http://localhost:8080',
+      '/api': proxyTarget,
+      '/health': proxyTarget,
+      '/auth': proxyTarget,
+      '/storage': proxyTarget,
     },
   },
 });
