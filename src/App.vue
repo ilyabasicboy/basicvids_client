@@ -1291,6 +1291,34 @@ function clearUploadState() {
   uploadProgressText.value = '';
 }
 
+const videoContentTypesByExtension = {
+  '.3gp': 'video/3gpp',
+  '.avi': 'video/x-msvideo',
+  '.flv': 'video/x-flv',
+  '.m2ts': 'video/mp2t',
+  '.m4v': 'video/x-m4v',
+  '.mkv': 'video/x-matroska',
+  '.mov': 'video/quicktime',
+  '.mp4': 'video/mp4',
+  '.mpeg': 'video/mpeg',
+  '.mpg': 'video/mpeg',
+  '.mts': 'video/mp2t',
+  '.ogv': 'video/ogg',
+  '.ts': 'video/mp2t',
+  '.webm': 'video/webm',
+  '.wmv': 'video/x-ms-wmv',
+};
+
+function inferVideoContentType(file) {
+  if (file.type && file.type.startsWith('video/')) {
+    return file.type;
+  }
+
+  const lowerName = file.name.toLowerCase();
+  const extension = lowerName.includes('.') ? lowerName.slice(lowerName.lastIndexOf('.')) : '';
+  return videoContentTypesByExtension[extension] || file.type || 'application/octet-stream';
+}
+
 function resumableUploadStorageKey(file) {
   return [
     'basicvids_resumable_upload',
@@ -1327,7 +1355,7 @@ async function ensureUploadSession(file, upload) {
       if (
         existingSession.original_filename === file.name
         && existingSession.total_size_bytes === file.size
-        && existingSession.content_type === (file.type || 'video/mp4')
+        && existingSession.content_type === inferVideoContentType(file)
       ) {
         return existingSession;
       }
@@ -1341,7 +1369,7 @@ async function ensureUploadSession(file, upload) {
     description: upload?.description?.trim() || null,
     category_id: upload?.categoryId || null,
     original_filename: file.name,
-    content_type: file.type || 'video/mp4',
+    content_type: inferVideoContentType(file),
     total_size_bytes: file.size,
   });
   saveUploadSession(file, { uploadId: createdSession.id });

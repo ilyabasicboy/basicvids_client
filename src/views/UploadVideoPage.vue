@@ -31,9 +31,9 @@
           @dragover.prevent
           @drop.prevent="onDrop"
         >
-          <input type="file" accept="video/*" @change="onFileSelect" />
+          <input type="file" :accept="videoAccept" @change="onFileSelect" />
           <span>{{ form.file ? form.file.name : 'Choose or drop a video file' }}</span>
-          <small>{{ form.file ? formatBytes(form.file.size) : 'Stored by the storage microservice' }}</small>
+          <small>{{ form.file ? formatBytes(form.file.size) : `Supported formats: ${supportedVideoFormatsLabel}` }}</small>
         </label>
 
         <label class="dropzone thumbnail-dropzone" :class="{ selected: form.thumbnail }">
@@ -89,6 +89,9 @@ const props = defineProps({
 
 const emit = defineEmits(['upload-video']);
 const categoryOptions = computed(() => flattenCategories(props.categories));
+const supportedVideoFormats = ['.mp4', '.m4v', '.mov', '.avi', '.wmv', '.mkv', '.webm', '.mpeg', '.mpg', '.ts', '.m2ts', '.mts', '.3gp', '.flv', '.ogv'];
+const videoAccept = supportedVideoFormats.join(',');
+const supportedVideoFormatsLabel = supportedVideoFormats.join(', ');
 
 const form = reactive({
   title: '',
